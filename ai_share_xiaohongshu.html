@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIGC小红书笔记 · 实践分享</title>
+<style>
+:root{
+  --bg:#F5F2EE;--bg-card:#FDFAF6;--bg-alt:#EEE9E2;
+  --text-primary:#3D3530;--text-secondary:#7A6E68;--text-muted:#A89E98;
+  --accent:#C4888A;--accent-light:#F5E0E0;--border:#DDD5CC;
+  --shadow:rgba(61,53,48,.08);--shadow-h:rgba(61,53,48,.15);
+  --r:14px;--font:'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font);background:var(--bg);color:var(--text-primary);line-height:1.7;}
+
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(245,242,238,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);height:50px;display:flex;align-items:center;padding:0 24px;gap:12px;}
+.back-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);text-decoration:none;padding:4px 12px;border-radius:20px;border:1px solid var(--border);transition:all .2s;}
+.back-btn:hover{background:var(--border);color:var(--text-primary);}
+.navbar-title{font-size:13px;font-weight:600;color:var(--text-secondary);}
+.navbar-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;margin-left:8px;}
+.navbar-links::-webkit-scrollbar{display:none;}
+.navbar-links a{text-decoration:none;font-size:12px;color:var(--text-muted);padding:4px 10px;border-radius:20px;white-space:nowrap;transition:all .2s;}
+.navbar-links a:hover,.navbar-links a.active{color:var(--text-primary);background:var(--border);}
+
+.page-hint{position:fixed;bottom:20px;right:24px;z-index:150;font-size:11px;color:var(--text-muted);background:rgba(245,242,238,.9);border:1px solid var(--border);border-radius:20px;padding:5px 12px;backdrop-filter:blur(8px);}
+
+.page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:70px 0 50px;scroll-snap-align:start;}
+.page-alt{background:var(--bg-alt);}
+.container{width:100%;max-width:1100px;margin:0 auto;padding:0 32px;}
+
+.page-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;}
+.page-badge::before{content:'';display:inline-block;width:18px;height:2px;background:var(--accent);border-radius:2px;}
+
+.card{background:var(--bg-card);border-radius:var(--r);border:1px solid var(--border);padding:20px;box-shadow:0 2px 10px var(--shadow);transition:transform .25s,box-shadow .25s;}
+.card:hover{transform:translateY(-2px);box-shadow:0 6px 20px var(--shadow-h);}
+
+.section-title{font-size:clamp(20px,2.8vw,32px);font-weight:700;color:var(--text-primary);line-height:1.3;letter-spacing:-.02em;}
+.section-sub{font-size:14px;color:var(--text-secondary);margin-top:6px;}
+
+.exp-content{max-height:0;overflow:hidden;transition:max-height .4s ease;}
+.exp-content.open{max-height:800px;}
+.exp-icon{display:inline-block;transition:transform .3s;font-style:normal;}
+
+.placeholder{background:var(--bg-alt);border-radius:10px;padding:24px;min-height:90px;display:flex;align-items:center;justify-content:center;border:1.5px dashed var(--accent);text-align:center;}
+.placeholder-inner{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.placeholder-icon{font-size:28px;}
+.placeholder-label{font-size:13px;font-weight:600;color:var(--text-secondary);}
+.placeholder-hint{font-size:11px;color:var(--text-muted);}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+.fu{animation:fadeUp .5s ease both;}
+.d1{animation-delay:.1s;}.d2{animation-delay:.2s;}.d3{animation-delay:.3s;}
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="back-btn" href="ai_share_final.html">← 返回主页</a>
+  <span class="navbar-title">AIGC小红书笔记 · 实践分享</span>
+  <div class="navbar-links" id="navLinks">
+    <a href="#x1">成果进展</a>
+    <a href="#x2">协作经验</a>
+  </div>
+</nav>
+
+<div class="page-hint">← → 方向键翻页</div>
+
+<!-- ===== X1 成果进展 ===== -->
+<section id="x1" class="page" style="background:var(--bg);">
+  <div class="container">
+    <div class="page-badge fu">AIGC小红书笔记 · 01</div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;">
+      <h2 class="section-title fu d1">AIGC小红书笔记</h2>
+      <span style="background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;" class="fu d1">成果进展</span>
+    </div>
+    <p class="section-sub fu d2">落地背景、项目进展与核心成果数据</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:28px;">
+
+      <!-- 落地背景 -->
+      <div class="card fu d1" style="cursor:pointer;" onclick="toggleCard(this)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">🌱</span>
+            <span style="font-size:13px;font-weight:700;">落地背景</span>
+          </div>
+          <span style="font-size:11px;color:var(--text-muted);">点击展开</span>
+        </div>
+        <div class="placeholder">
+          <div class="placeholder-inner">
+            <div class="placeholder-icon">📝</div>
+            <div class="placeholder-label">【落地背景】</div>
+            <div class="placeholder-hint">分享时填充具体内容</div>
+          </div>
+        </div>
+        <div style="display:none;margin-top:12px;padding:14px;background:#FFF0F0;border-radius:10px;border:1px dashed var(--accent);" class="card-detail">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.8;">【落地背景详细内容区】</div>
+        </div>
+      </div>
+
+      <!-- 项目进展 -->
+      <div class="card fu d2" style="cursor:pointer;" onclick="toggleCard(this)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">📈</span>
+            <span style="font-size:13px;font-weight:700;">项目进展</span>
+          </div>
+          <span style="font-size:11px;color:var(--text-muted);">点击展开</span>
+        </div>
+        <div class="placeholder">
+          <div class="placeholder-inner">
+            <div class="placeholder-icon">🗓️</div>
+            <div class="placeholder-label">【项目进展】</div>
+            <div class="placeholder-hint">分享时填充具体内容</div>
+          </div>
+        </div>
+        <div style="display:none;margin-top:12px;padding:14px;background:#F0F8EE;border-radius:10px;border:1px dashed #8BA888;" class="card-detail">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.8;">【项目进展详细内容区】</div>
+        </div>
+      </div>
+
+      <!-- 核心成果 -->
+      <div class="card fu d3" style="cursor:pointer;" onclick="toggleCard(this)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">🏆</span>
+            <span style="font-size:13px;font-weight:700;">核心成果&数据</span>
+          </div>
+          <span style="font-size:11px;color:var(--text-muted);">点击展开</span>
+        </div>
+        <div class="placeholder">
+          <div class="placeholder-inner">
+            <div class="placeholder-icon">📊</div>
+            <div class="placeholder-label">【核心成果&数据】</div>
+            <div class="placeholder-hint">分享时填充具体数据</div>
+          </div>
+        </div>
+        <div style="display:none;margin-top:12px;padding:14px;background:#FFF0F0;border-radius:10px;border:1px dashed var(--accent);" class="card-detail">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.8;">【核心成果&数据详细内容区】</div>
+        </div>
+      </div>
+
+    </div>
+    <div style="margin-top:16px;font-size:12px;color:var(--text-muted);">💡 点击卡片可展开详细内容</div>
+  </div>
+</section>
+
+<!-- ===== X2 协作经验 ===== -->
+<section id="x2" class="page page-alt">
+  <div class="container">
+    <div class="page-badge">AIGC小红书笔记 · 02</div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;">
+      <h2 class="section-title">AIGC笔记落地</h2>
+      <span style="background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;">协作经验</span>
+    </div>
+    <p class="section-sub">跨角色协作模式、踩坑经验与可复用业务认知沉淀</p>
+
+    <div style="display:flex;flex-direction:column;gap:14px;margin-top:24px;">
+
+      <!-- 跨角色协作模式 -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
+             onclick="toggleExp(this)">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:34px;height:34px;border-radius:50%;background:#F5E0E0;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">🤝</span>
+            <div>
+              <div style="font-size:14px;font-weight:700;">跨角色协作模式</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">点击展开 · 分享时逐段呈现</div>
+            </div>
+          </div>
+          <span class="exp-icon" style="color:var(--text-muted);font-size:15px;">▶</span>
+        </div>
+        <div class="exp-content" style="border-top:1px solid var(--border);">
+          <div style="padding:16px;">
+            <div class="placeholder">
+              <div class="placeholder-inner">
+                <div class="placeholder-icon">🤝</div>
+                <div class="placeholder-label">【跨角色协作模式】</div>
+                <div class="placeholder-hint">分享时在此填充具体协作模式内容</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 踩坑&避坑 -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
+             onclick="toggleExp(this)">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:34px;height:34px;border-radius:50%;background:#F5EDD0;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">⚠️</span>
+            <div>
+              <div style="font-size:14px;font-weight:700;">落地踩坑 & 避坑经验</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">点击展开 · 分享时逐段呈现</div>
+            </div>
+          </div>
+          <span class="exp-icon" style="color:var(--text-muted);font-size:15px;">▶</span>
+        </div>
+        <div class="exp-content" style="border-top:1px solid var(--border);">
+          <div style="padding:16px;">
+            <div class="placeholder" style="border-color:#D4B86A;">
+              <div class="placeholder-inner">
+                <div class="placeholder-icon">⚠️</div>
+                <div class="placeholder-label">【落地踩坑&避坑经验】</div>
+                <div class="placeholder-hint">分享时在此填充具体踩坑经验</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 可复用业务认知 -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
+             onclick="toggleExp(this)">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:34px;height:34px;border-radius:50%;background:#DFF0DC;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">💡</span>
+            <div>
+              <div style="font-size:14px;font-weight:700;">可复用的业务认知</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">点击展开 · 分享时逐段呈现</div>
+            </div>
+          </div>
+          <span class="exp-icon" style="color:var(--text-muted);font-size:15px;">▶</span>
+        </div>
+        <div class="exp-content" style="border-top:1px solid var(--border);">
+          <div style="padding:16px;">
+            <div class="placeholder" style="border-color:#8BA888;">
+              <div class="placeholder-inner">
+                <div class="placeholder-icon">💡</div>
+                <div class="placeholder-label">【可复用的业务认知】</div>
+                <div class="placeholder-hint">分享时在此填充可沉淀的业务认知</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+const pages=['x1','x2'];
+let cur=0;
+function goPage(idx){if(idx<0||idx>=pages.length)return;cur=idx;document.getElementById(pages[cur]).scrollIntoView({behavior:'smooth'});updateNav();}
+function updateNav(){document.querySelectorAll('.navbar-links a').forEach((a,i)=>a.classList.toggle('active',i===cur));}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '){e.preventDefault();goPage(cur+1);}
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();goPage(cur-1);}
+});
+const obs=new IntersectionObserver(entries=>{entries.forEach(en=>{if(en.isIntersecting){const i=pages.indexOf(en.target.id);if(i>=0){cur=i;updateNav();}}});},{threshold:.5});
+pages.forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
+updateNav();
+
+function toggleCard(el){
+  const d=el.querySelector('.card-detail');
+  if(!d)return;
+  const open=d.style.display!=='none';
+  d.style.display=open?'none':'block';
+  const hint=el.querySelector('span[style*="color:var(--text-muted)"]');
+  if(hint)hint.textContent=open?'点击展开':'点击收起';
+}
+function toggleExp(header){
+  const content=header.nextElementSibling;
+  const icon=header.querySelector('.exp-icon');
+  const open=content.classList.contains('open');
+  content.classList.toggle('open',!open);
+  if(icon)icon.style.transform=open?'':'rotate(90deg)';
+}
+</script>
+</body>
+</html>

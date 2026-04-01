@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI营销员工探索实践分享</title>
+<style>
+:root {
+  --bg: #F5F2EE;
+  --bg-card: #FDFAF6;
+  --bg-alt: #EEE9E2;
+  --text-primary: #3D3530;
+  --text-secondary: #7A6E68;
+  --text-muted: #A89E98;
+  --accent-warm: #C4956A;
+  --accent-sage: #8BA888;
+  --accent-dusty: #9B8EA8;
+  --accent-blush: #C4888A;
+  --accent-sky: #7AAAB8;
+  --accent-yellow: #D4B86A;
+  --p0-color: #5A8A6A;
+  --p0-bg: #DFF0DC;
+  --border: #DDD5CC;
+  --shadow: rgba(61,53,48,0.08);
+  --shadow-hover: rgba(61,53,48,0.16);
+  --r: 14px;
+  --font: 'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font);background:var(--bg);color:var(--text-primary);line-height:1.7;overflow-x:hidden;}
+
+/* ===== 导航栏 ===== */
+.navbar{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(245,242,238,0.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);height:50px;display:flex;align-items:center;padding:0 24px;gap:0;}
+.navbar-brand{font-size:13px;font-weight:600;color:var(--text-secondary);white-space:nowrap;margin-right:20px;}
+.navbar-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;}
+.navbar-links::-webkit-scrollbar{display:none;}
+.navbar-links a{text-decoration:none;font-size:12px;color:var(--text-muted);padding:4px 10px;border-radius:20px;white-space:nowrap;transition:all .2s;}
+.navbar-links a:hover,.navbar-links a.active{color:var(--text-primary);background:var(--border);}
+.navbar-time{font-size:12px;color:var(--text-muted);white-space:nowrap;margin-left:12px;}
+
+/* ===== 翻页提示 ===== */
+.page-hint{position:fixed;bottom:20px;right:24px;z-index:150;font-size:11px;color:var(--text-muted);background:rgba(245,242,238,0.9);border:1px solid var(--border);border-radius:20px;padding:5px 12px;backdrop-filter:blur(8px);}
+
+/* ===== 页面 ===== */
+.page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:70px 0 50px;scroll-snap-align:start;}
+.page-alt{background:var(--bg-alt);}
+
+/* ===== 容器：更宽，减少留白 ===== */
+.container{width:100%;max-width:1100px;margin:0 auto;padding:0 32px;}
+
+/* ===== 页码标签 ===== */
+.page-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:16px;}
+.page-badge::before{content:'';display:inline-block;width:18px;height:2px;background:var(--accent-warm);border-radius:2px;}
+
+/* ===== 卡片 ===== */
+.card{background:var(--bg-card);border-radius:var(--r);border:1px solid var(--border);padding:20px;box-shadow:0 2px 10px var(--shadow);transition:transform .25s,box-shadow .25s;}
+.card:hover{transform:translateY(-2px);box-shadow:0 6px 20px var(--shadow-hover);}
+
+/* ===== 便签 ===== */
+.sticky{border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.6;position:relative;}
+.sticky-warm{background:#F5E6D3;color:#7A5030;border:1px solid #E8D0B0;}
+.sticky-sage{background:#DFF0DC;color:#3A6040;border:1px solid #C0DDB8;}
+.sticky-yellow{background:#F5EDD0;color:#7A6020;border:1px solid #E8D8A0;}
+.sticky-sky{background:#D8EEF5;color:#2A6878;border:1px solid #B8D8E8;}
+
+/* ===== 流程步骤 ===== */
+.flow-wrap{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.flow-step{display:inline-flex;align-items:center;background:var(--bg-card);border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text-secondary);white-space:nowrap;transition:all .2s;cursor:default;}
+.flow-step:hover{border-color:var(--accent-warm);color:var(--text-primary);}
+.flow-step.p0{background:var(--p0-color);color:#fff;border-color:var(--p0-color);}
+.flow-sep{color:var(--text-muted);font-size:13px;flex-shrink:0;}
+
+/* ===== 四象限 ===== */
+.q-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:6px;align-items:stretch;}
+.q-cell{border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;cursor:pointer;transition:transform .2s;}
+.q-cell:hover{transform:scale(1.02);}
+.q-label{font-size:10px;font-weight:600;letter-spacing:.04em;margin-bottom:5px;opacity:.7;}
+.q-items{display:flex;flex-direction:column;gap:4px;}
+.q-tag{display:inline-flex;align-items:center;font-size:10px;font-weight:500;padding:2px 7px;border-radius:16px;width:fit-content;white-space:nowrap;}
+.q-tl{background:#DFF0DC;border:1px solid #B8D8B0;}
+.q-tl .q-label{color:#3A6040;}
+.q-tl .q-tag{background:var(--p0-color);color:#fff;}
+.q-tr{background:#F5EDD0;border:1px solid #E0D0A0;}
+.q-tr .q-label{color:#7A6020;}
+.q-tr .q-tag{background:#C4A040;color:#fff;}
+.q-bl{background:#F0EDE8;border:1px solid #DDD5CC;}
+.q-bl .q-label{color:#9A8E88;}
+.q-br{background:#EDE8F0;border:1px solid #D5CCE0;}
+.q-br .q-label{color:#8A8098;}
+.q-badge{position:absolute;top:8px;right:8px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;z-index:2;}
+.q-cell{overflow:visible !important;}
+
+/* ===== 分割线 ===== */
+.divider{width:36px;height:3px;background:var(--accent-warm);border-radius:3px;margin:14px 0;}
+
+/* ===== 标题 ===== */
+.section-title{font-size:clamp(22px,3vw,34px);font-weight:700;color:var(--text-primary);line-height:1.3;letter-spacing:-.02em;}
+.section-sub{font-size:14px;color:var(--text-secondary);margin-top:6px;line-height:1.6;}
+
+/* ===== 折叠 ===== */
+.exp-content{max-height:0;overflow:hidden;transition:max-height .4s ease;}
+.exp-content.open{max-height:600px;}
+.exp-icon{display:inline-block;transition:transform .3s;font-style:normal;}
+.exp-open .exp-icon{transform:rotate(90deg);}
+
+/* ===== 角色对应线 ===== */
+.role-flow-wrap{display:grid;grid-template-columns:1fr 24px 1fr;gap:0;align-items:stretch;}
+.role-flow-steps{display:flex;flex-direction:column;gap:0;}
+.role-flow-step{display:flex;gap:12px;align-items:flex-start;position:relative;}
+.role-step-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;position:relative;z-index:1;}
+.role-step-line{width:2px;height:24px;background:var(--border);margin:3px auto;}
+.role-step-content{padding-top:5px;flex:1;}
+.role-step-title{font-size:13px;font-weight:600;color:var(--text-primary);}
+.role-step-desc{font-size:11px;color:var(--text-secondary);margin-top:1px;}
+.role-connector{display:flex;flex-direction:column;align-items:center;justify-content:space-around;padding:4px 0;}
+.role-connector-line{width:1px;flex:1;background:var(--border);}
+.role-connector-dot{width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0;}
+.role-cards{display:flex;flex-direction:column;gap:10px;}
+.role-card{border-radius:12px;padding:14px 16px;border:1.5px solid var(--border);background:var(--bg-card);transition:all .2s;}
+.role-card.highlight{border-color:var(--accent-warm);background:#FFF8F2;}
+
+/* ===== 动画 ===== */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.fu{animation:fadeUp .5s ease both;}
+.d1{animation-delay:.1s;}.d2{animation-delay:.2s;}.d3{animation-delay:.3s;}.d4{animation-delay:.4s;}
+
+/* ===== 实践入口卡片 ===== */
+.practice-card{border-radius:16px;padding:28px;border:2px solid var(--border);background:var(--bg-card);cursor:pointer;transition:all .3s;text-decoration:none;display:block;color:inherit;}
+.practice-card:hover{border-color:var(--accent-warm);transform:translateY(-4px);box-shadow:0 12px 32px var(--shadow-hover);}
+
+/* ===== 响应式 ===== */
+@media(max-width:900px){
+  .container{padding:0 20px;}
+  .role-flow-wrap{grid-template-columns:1fr;}
+  .role-connector{display:none;}
+}
+@media(max-width:600px){
+  .q-grid{height:auto;grid-template-columns:1fr;}
+  .flow-step{font-size:11px;padding:4px 9px;}
+}
+</style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<nav class="navbar">
+  <span class="navbar-brand">AI营销员工探索实践</span>
+  <div class="navbar-links" id="navLinks">
+    <a href="#page1">封面</a>
+    <a href="#page2">切入逻辑</a>
+    <a href="#page3">角色协同</a>
+    <a href="#page4">实践分享</a>
+  </div>
+  <span class="navbar-time">4月1日 · 渠道产品组</span>
+</nav>
+
+<!-- 翻页提示 -->
+<div class="page-hint">← → 方向键 / 空格键翻页</div>
+
+<!-- ==================== P1 封面 ==================== -->
+<section id="page1" class="page" style="background:var(--bg);position:relative;overflow:hidden;">
+  <div style="position:absolute;top:-100px;right:-100px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(196,149,106,.1),transparent 70%);pointer-events:none;"></div>
+  <div style="position:absolute;bottom:-80px;left:-80px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(139,168,136,.1),transparent 70%);pointer-events:none;"></div>
+
+  <div class="container">
+    <div style="display:grid;grid-template-columns:1fr auto;gap:48px;align-items:center;">
+      <div>
+        <div class="page-badge fu">PAGE 01 · COVER</div>
+        <div class="fu d1" style="display:inline-block;background:#F5EDD0;border:1px solid #E8D8A0;border-radius:8px;padding:4px 14px;font-size:12px;color:#8A7030;margin-bottom:14px;">✏️ 渠道增长部 · 全员AI分享</div>
+        <h1 class="section-title fu d2" style="font-size:clamp(30px,4.5vw,52px);margin-bottom:10px;">
+          AI营销员工<br><span style="color:var(--accent-warm);">探索实践</span>分享
+        </h1>
+        <div class="divider fu d2"></div>
+        <div class="fu d3" style="display:flex;flex-direction:column;gap:10px;margin-top:18px;">
+          <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-secondary);">
+            <span style="width:28px;height:28px;background:var(--bg-alt);border-radius:50%;display:flex;align-items:center;justify-content:center;">👥</span>
+            分享部门：<strong style="color:var(--text-primary);">渠道产品组</strong>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-secondary);">
+            <span style="width:28px;height:28px;background:var(--bg-alt);border-radius:50%;display:flex;align-items:center;justify-content:center;">🙋</span>
+            分享人：<strong style="color:var(--text-primary);">李亚东、胡佳懿、马露月</strong>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-secondary);">
+            <span style="width:28px;height:28px;background:var(--bg-alt);border-radius:50%;display:flex;align-items:center;justify-content:center;">📅</span>
+            分享时间：<strong style="color:var(--text-primary);">4月1日</strong>
+          </div>
+        </div>
+        <div class="fu d4" style="margin-top:24px;display:inline-flex;align-items:center;gap:8px;background:var(--bg-alt);border-radius:24px;padding:7px 16px;font-size:12px;color:var(--text-muted);">
+          ⏱ 预计分享时长 40–50 分钟
+        </div>
+      </div>
+      <div class="fu d2" style="width:200px;flex-shrink:0;opacity:.85;">
+        <svg width="200" height="220" viewBox="0 0 200 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="50" width="130" height="100" rx="8" fill="#FDFAF6" stroke="#C4956A" stroke-width="2.5"/>
+          <rect x="20" y="50" width="20" height="100" rx="8" fill="#E8D0B0" stroke="#C4956A" stroke-width="2"/>
+          <line x1="50" y1="74" x2="138" y2="74" stroke="#DDD5CC" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="50" y1="88" x2="138" y2="88" stroke="#DDD5CC" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="50" y1="102" x2="125" y2="102" stroke="#DDD5CC" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="50" y1="116" x2="130" y2="116" stroke="#DDD5CC" stroke-width="1.5" stroke-linecap="round"/>
+          <rect x="56" y="67" width="26" height="13" rx="4" fill="#C4956A"/>
+          <text x="69" y="77" text-anchor="middle" font-size="8" fill="white" font-weight="bold">AI</text>
+          <ellipse cx="162" cy="142" rx="20" ry="7" fill="#E8D0B0" stroke="#C4956A" stroke-width="2"/>
+          <rect x="142" y="110" width="40" height="32" rx="6" fill="#FDFAF6" stroke="#C4956A" stroke-width="2"/>
+          <path d="M182 118 Q194 118 194 128 Q194 138 182 138" stroke="#C4956A" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M152 105 Q154 99 152 94" stroke="#C4956A" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".5"/>
+          <path d="M162 103 Q164 97 162 91" stroke="#C4956A" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".5"/>
+          <path d="M172 105 Q174 99 172 94" stroke="#C4956A" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".5"/>
+          <rect x="5" y="140" width="50" height="48" rx="4" fill="#F5EDD0" stroke="#E8D8A0" stroke-width="1.5" transform="rotate(-8 30 164)"/>
+          <line x1="12" y1="156" x2="46" y2="150" stroke="#E8D8A0" stroke-width="1.2" stroke-linecap="round"/>
+          <line x1="12" y1="165" x2="46" y2="159" stroke="#E8D8A0" stroke-width="1.2" stroke-linecap="round"/>
+          <rect x="125" y="170" width="55" height="11" rx="5" fill="#8BA888" transform="rotate(-20 152 175)"/>
+          <text x="90" y="42" font-size="15" fill="#D4B86A" opacity=".6">✦</text>
+          <text x="22" y="38" font-size="10" fill="#C4956A" opacity=".5">✦</text>
+          <text x="170" y="68" font-size="11" fill="#8BA888" opacity=".5">✦</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== P2 切入逻辑 ==================== -->
+<section id="page2" class="page page-alt">
+  <div class="container">
+    <div class="page-badge">PAGE 02 · 切入逻辑</div>
+    <h2 class="section-title">AI切入内容营销，<span style="color:var(--accent-warm);">从哪里开始？</span></h2>
+    <p class="section-sub">以「业务提效价值」和「AI切入难度」为核心标尺，由点及面、由浅入深落地</p>
+
+    <div style="display:grid;grid-template-columns:2fr 3fr;gap:36px;margin-top:28px;align-items:start;">
+
+      <!-- 左：四象限 -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px;letter-spacing:.05em;">优先级矩阵</div>
+
+        <!-- 矩阵主体：Y轴标签 + 矩阵 -->
+        <div style="display:flex;align-items:stretch;gap:0;">
+
+          <!-- Y轴标签（竖向，居中对齐矩阵高度） -->
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:18px;flex-shrink:0;margin-right:6px;">
+            <div style="font-size:12px;color:var(--text-muted);line-height:1;margin-bottom:4px;">↑</div>
+            <div style="writing-mode:vertical-rl;font-size:10px;color:var(--text-muted);letter-spacing:.05em;white-space:nowrap;line-height:1;">业务提效价值</div>
+          </div>
+
+          <!-- 矩阵 + X轴标签 -->
+          <div style="flex:1;display:flex;flex-direction:column;">
+            <!-- X轴标签 -->
+            <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+              <div style="font-size:10px;color:var(--text-muted);letter-spacing:.05em;">AI切入难度 →</div>
+            </div>
+            <div class="q-grid">
+              <!-- 高价值·低难度 P0 -->
+              <div class="q-cell q-tl" style="grid-column:1;grid-row:1;height:100%;box-sizing:border-box;justify-content:flex-start;">
+                <div class="q-badge" style="background:var(--p0-color);color:#fff;">P0</div>
+                <div class="q-label" style="opacity:1;font-size:10px;color:#3A6040;font-weight:600;">高价值 · 低难度</div>
+                <div class="q-items">
+                  <span class="q-tag">AI达人选号</span>
+                  <span class="q-tag">AIGC小红书笔记</span>
+                  <span class="q-tag">洞察（AI舆情/心智）</span>
+                </div>
+              </div>
+              <!-- 高价值·高难度 后续 -->
+              <div class="q-cell q-tr" style="grid-column:2;grid-row:1;height:100%;box-sizing:border-box;justify-content:flex-start;">
+                <div class="q-badge" style="background:#C4A040;color:#fff;">后续</div>
+                <div class="q-label" style="opacity:1;font-size:10px;color:#7A6020;font-weight:600;">高价值 · 高难度</div>
+                <div class="q-items">
+                  <span class="q-tag">需求对齐</span>
+                  <span class="q-tag">策略制定</span>
+                  <span class="q-tag">复盘优化</span>
+                  <span class="q-tag">素人招募调度</span>
+                  <span class="q-tag">AI审稿</span>
+                  <span class="q-tag">投流提效</span>
+                </div>
+              </div>
+              <!-- 低价值·低难度 -->
+              <div class="q-cell q-bl" style="grid-column:1;grid-row:2;">
+                <div class="q-label">低价值 · 低难度</div>
+                <div style="font-size:11px;color:var(--text-muted);">低优先级</div>
+              </div>
+              <!-- 低价值·高难度 -->
+              <div class="q-cell q-br" style="grid-column:2;grid-row:2;">
+                <div class="q-label">低价值 · 高难度</div>
+                <div style="font-size:11px;color:var(--text-muted);">不推进</div>
+              </div>
+            </div><!-- /q-grid -->
+          </div><!-- /矩阵+X轴列 -->
+        </div><!-- /flex主体 -->
+
+      </div>
+
+      <!-- 右：两条链路 -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.05em;">内容营销执行链路</div>
+
+        <!-- 商单达人KFS -->
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-warm);flex-shrink:0;"></div>
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary);">商单达人 KFS 链路</span>
+          </div>
+          <div class="flow-wrap">
+            <div class="flow-step">需求对齐</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step p0">营销洞察</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">策略制定</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step p0">达人筛选</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">达人生产</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">审稿</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">投流</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">复盘优化</div>
+          </div>
+        </div>
+
+        <!-- 素人自然流 -->
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-sage);flex-shrink:0;"></div>
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary);">素人自然流链路</span>
+          </div>
+          <div class="flow-wrap">
+            <div class="flow-step">需求对齐</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step p0">营销洞察</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">策略制定</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">素人招募</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step p0">AIGC生产</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">素人生产</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">审稿</div>
+            <span class="flow-sep">→</span>
+            <div class="flow-step">复盘优化</div>
+          </div>
+        </div>
+
+        <!-- 图例 + 说明 -->
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);">
+          <span style="width:10px;height:10px;border-radius:3px;background:var(--p0-color);display:inline-block;"></span>
+          P0 落地环节 · 目标是节点稳定运转，沉淀 know-how
+        </div>
+
+        <div class="sticky sticky-yellow" style="font-size:12px;">
+          <strong>⏳ 后续规划</strong>：需求对齐、策略制定等模糊度较高，程序化投放侧已在探索实践，后续内容营销可复用 know-how
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== P3 角色协同 ==================== -->
+<section id="page3" class="page" style="background:var(--bg);">
+  <div class="container">
+    <div class="page-badge">PAGE 03 · 角色协同</div>
+    <h2 class="section-title" style="margin-bottom:4px;">AI落地的角色协同？</h2>
+    <p class="section-sub">「业务人 × 产品人 × AI训练师」的协同闭环</p>
+
+    <!-- 色块图例说明 -->
+    <div style="display:flex;gap:16px;margin-top:14px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);">
+        <span style="width:12px;height:12px;border-radius:3px;background:#E8C8A8;display:inline-block;"></span>运营负责
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);">
+        <span style="width:12px;height:12px;border-radius:3px;background:#C8D8C8;display:inline-block;"></span>产品经理主R + AI训练师S
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);">
+        <span style="width:12px;height:12px;border-radius:3px;background:#A888A0;display:inline-block;"></span>AI训练师负责
+      </div>
+    </div>
+
+    <!-- 强制两栏，不受响应式影响 -->
+    <div style="display:flex;gap:28px;margin-top:20px;align-items:flex-start;">
+
+      <!-- 左：全流程 -->
+      <div style="flex:0 0 340px;min-width:0;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:12px;letter-spacing:.05em;">AI落地全流程闭环</div>
+        <div style="display:flex;flex-direction:column;gap:0;">
+
+          <!-- 步骤1：运营 -->
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+              <div style="width:32px;height:32px;border-radius:50%;background:#F5E6D3;border:2px solid #E8C8A8;display:flex;align-items:center;justify-content:center;font-size:14px;">🎯</div>
+              <div style="width:2px;height:20px;background:#E8C8A8;margin:3px auto;"></div>
+            </div>
+            <div style="padding-top:4px;flex:1;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--text-primary);">业务问题和目标</span>
+                <span style="font-size:10px;background:#F5E6D3;color:#8A5030;padding:1px 7px;border-radius:8px;font-weight:600;">运营</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 步骤2：AI训练师（头） -->
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+              <div style="width:32px;height:32px;border-radius:50%;background:#F2EAF0;border:2px solid #A888A0;display:flex;align-items:center;justify-content:center;font-size:14px;">📚</div>
+              <div style="width:2px;height:20px;background:#A888A0;margin:3px auto;opacity:.4;"></div>
+            </div>
+            <div style="padding-top:4px;flex:1;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--text-primary);">解决的知识和经验</span>
+                <span style="font-size:10px;background:#F2EAF0;color:#7A4A72;padding:1px 7px;border-radius:8px;font-weight:600;border:1px solid #A888A0;">AI训练师 · 头</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 步骤3：产品经理+AI训练师 -->
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+              <div style="width:32px;height:32px;border-radius:50%;background:#EEF0E8;border:2px solid #C8D8C8;display:flex;align-items:center;justify-content:center;font-size:14px;">🤖</div>
+              <div style="width:2px;height:20px;background:#C8D8C8;margin:3px auto;"></div>
+            </div>
+            <div style="padding-top:4px;flex:1;">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-size:13px;font-weight:600;color:var(--text-primary);">AI Agent 搭建</span>
+                <span style="font-size:10px;background:#EEF0E8;color:#4A6848;padding:1px 7px;border-radius:8px;font-weight:600;">产品经理主R + AI训练师S</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 步骤4：AI训练师（尾）- 评测 -->
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+              <div style="width:32px;height:32px;border-radius:50%;background:#F2EAF0;border:2px solid #A888A0;display:flex;align-items:center;justify-content:center;font-size:14px;">📊</div>
+              <div style="width:2px;height:20px;background:#A888A0;margin:3px auto;opacity:.4;"></div>
+            </div>
+            <div style="padding-top:4px;flex:1;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--text-primary);">评测</span>
+                <span style="font-size:10px;background:#F2EAF0;color:#7A4A72;padding:1px 7px;border-radius:8px;font-weight:600;border:1px solid #A888A0;">AI训练师 · 尾</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 步骤4b：产品经理+AI训练师 - 效果调优 -->
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+              <div style="width:32px;height:32px;border-radius:50%;background:#EEF0E8;border:2px solid #C8D8C8;display:flex;align-items:center;justify-content:center;font-size:14px;">🔧</div>
+              <div style="width:2px;height:20px;background:#C8D8C8;margin:3px auto;"></div>
+            </div>
+            <div style="padding-top:4px;flex:1;">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-size:13px;font-weight:600;color:var(--text-primary);">效果调优</span>
+                <span style="font-size:10px;background:#EEF0E8;color:#4A6848;padding:1px 7px;border-radius:8px;font-weight:600;">产品经理主R + AI训练师S</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 步骤5：运营 -->
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+              <div style="width:32px;height:32px;border-radius:50%;background:#F5E6D3;border:2px solid #E8C8A8;display:flex;align-items:center;justify-content:center;font-size:14px;">🌟</div>
+            </div>
+            <div style="padding-top:4px;flex:1;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--text-primary);">业务场景全量落地</span>
+                <span style="font-size:10px;background:#F5E6D3;color:#8A5030;padding:1px 7px;border-radius:8px;font-weight:600;">运营</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 右：角色卡片 -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px;letter-spacing:.05em;">角色分工</div>
+
+        <!-- 运营 -->
+        <div style="border-radius:12px;padding:14px 16px;border:2px solid #E8C8A8;background:#FDFAF6;">
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="width:36px;height:36px;border-radius:50%;background:#F5E6D3;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👩‍💼</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text-primary);">运营</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.6;">
+                定义需解决的业务问题和核心目标<br>
+                推动能力的全量覆盖应用
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 产品经理 -->
+        <div style="border-radius:12px;padding:14px 16px;border:2px solid #C8D8C8;background:#FDFAF6;">
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="width:36px;height:36px;border-radius:50%;background:#EEF0E8;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👨‍💻</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text-primary);">产品经理</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">明确需求、定义场景、设计产品的交互方式，保证最终上线的产品满足需求，过程中协同AI训练师</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI训练师 -->
+        <div style="border-radius:12px;padding:14px 16px;border:2px solid #A888A0;background:#F8F2F6;">
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="width:36px;height:36px;border-radius:50%;background:#A888A0;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🧑‍🏫</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;color:#7A4A72;">AI训练师 ⭐ 核心角色</div>
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.6;">
+                必须具备运营专家经验认知 · 深入业务实操<br>
+                承担部分业务结果 · 保持业务经验先进性
+              </div>
+              <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="background:#F2EAF0;border-radius:10px;padding:10px;">
+                  <div style="font-size:11px;font-weight:700;color:#7A4A72;margin-bottom:4px;">🔝 头</div>
+                  <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">建立知识库<br>梳理经验</div>
+                </div>
+                <div style="background:#F2EAF0;border-radius:10px;padding:10px;">
+                  <div style="font-size:11px;font-weight:700;color:#7A4A72;margin-bottom:4px;">🔚 尾</div>
+                  <div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">评测AI输出水平<br>辅助效果调优</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#DFF0DC;border:1px solid #C0DDB8;border-radius:10px;padding:10px 14px;font-size:12px;color:#3A6040;line-height:1.6;">
+          💡 AI训练师 = 业务专家 + AI评测专家，是AI落地质量关键
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== P4 实践分享入口 ==================== -->
+<section id="page4" class="page page-alt">
+  <div class="container">
+    <div class="page-badge">PAGE 04 · 实践分享</div>
+    <h2 class="section-title" style="margin-bottom:6px;">AI营销干货</h2>
+    <p class="section-sub">两个落地项目的完整实践——点击进入各自的详细分享页</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px;">
+
+      <!-- 达人选号 -->
+      <a class="practice-card" href="https://hujiayi779-hash.github.io/ai-kol-selection/" target="_blank">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+          <div style="width:52px;height:52px;border-radius:50%;background:#DFF0DC;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">🔍</div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);letter-spacing:.05em;margin-bottom:2px;">PROJECT 01</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text-primary);">AI达人选号</div>
+          </div>
+        </div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--p0-color);flex-shrink:0;"></span>为什么做：人工选号的效率瓶颈，AI 能在哪里帮上忙
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--p0-color);flex-shrink:0;"></span>怎么搭：把「判断题」拆成 AI 能做的一个个小任务
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--p0-color);flex-shrink:0;"></span>跑起来：从跑通 demo 到规模化稳定落地的工程跨越
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--p0-color);flex-shrink:0;"></span>打磨效果：准确率 68.8%、召回率 78.6% 背后的迭代路径
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:15px;font-weight:700;color:var(--p0-color);">⏱ 约 20 分钟</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--p0-color);">
+            点击打开 →
+          </div>
+        </div>
+      </a>
+
+      <!-- AIGC小红书笔记 -->
+      <a class="practice-card" href="https://luyuelishiduo.github.io/ai-employee-story-new/" target="_blank">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+          <div style="width:52px;height:52px;border-radius:50%;background:#F5E0E0;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">✍️</div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);letter-spacing:.05em;margin-bottom:2px;">PROJECT 02</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text-primary);">AIGC小红书笔记规模化生产</div>
+          </div>
+        </div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--accent-blush);flex-shrink:0;"></span>为什么做：现有流程的三大痛点，倒逼我们自己动手
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--accent-blush);flex-shrink:0;"></span>踩坑实录：15 天从「一篇一篇改」到「批量稳定出稿」
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--accent-blush);flex-shrink:0;"></span>关键转变：为什么「调提示词」解决不了规模化的问题
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--accent-blush);flex-shrink:0;"></span>协作经验：业务、算法、后端、运营四个角色怎么配合
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:15px;font-weight:700;color:var(--accent-blush);">⏱ 约 20 分钟</div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--accent-blush);">
+            点击打开 →
+          </div>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- 后续预告 -->
+    <div style="margin-top:32px;border-top:1px solid var(--border);padding-top:24px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.05em;margin-bottom:14px;">后续探索预告</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+        <div style="background:var(--bg-card);border-radius:12px;padding:16px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#DFF0DC;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📡</div>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">后续会分享</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+              <strong style="color:var(--text-primary);">拼好饭、问小团</strong>业务上的 AI 舆情心智评估等 AI 探索的落地进展
+            </div>
+            <div style="margin-top:6px;display:inline-flex;align-items:center;gap:4px;background:#DFF0DC;border-radius:10px;padding:2px 8px;font-size:10px;color:var(--p0-color);font-weight:600;">🔓 敬请期待</div>
+          </div>
+        </div>
+
+        <div style="background:var(--bg-card);border-radius:12px;padding:16px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#D8EEF5;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏗️</div>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:4px;">技术侧同步推动</div>
+            <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">
+              <strong style="color:var(--text-primary);">AI友好型技术架构建设</strong>，可大幅加速 AI 能力建设速度
+            </div>
+            <div style="margin-top:6px;display:inline-flex;align-items:center;gap:4px;background:#D8EEF5;border-radius:10px;padding:2px 8px;font-size:10px;color:var(--accent-sky);font-weight:600;">🔧 推进中</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+// ===== 键盘/空格翻页 =====
+const pages = ['page1','page2','page3','page4'];
+let cur = 0;
+
+function goPage(idx){
+  if(idx<0||idx>=pages.length)return;
+  cur=idx;
+  document.getElementById(pages[cur]).scrollIntoView({behavior:'smooth'});
+  updateNav();
+}
+
+function updateNav(){
+  document.querySelectorAll('.navbar-links a').forEach((a,i)=>{
+    a.classList.toggle('active', i===cur);
+  });
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '){e.preventDefault();goPage(cur+1);}
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();goPage(cur-1);}
+});
+
+// 滚动时更新当前页
+const observer = new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      const idx = pages.indexOf(entry.target.id);
+      if(idx>=0){cur=idx;updateNav();}
+    }
+  });
+},{threshold:0.5});
+pages.forEach(id=>{const el=document.getElementById(id);if(el)observer.observe(el);});
+
+updateNav();
+</script>
+</body>
+</html>
