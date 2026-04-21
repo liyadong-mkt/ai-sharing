@@ -1,0 +1,3258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AI营销工作台 · 执行端</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --yellow:#FFD100;--yellow-l:#FFF8D6;--yellow-m:#FFE566;--yellow-d:#D4A900;
+  --bg:#F5F6F8;--bg1:#FFFFFF;--bg2:#F0F2F5;--bg3:#E8EBF0;
+  --border:#E2E6ED;--border-y:rgba(255,209,0,0.4);
+  --text:#0F1623;--text2:#5C6478;--text3:#9BA3B4;
+  --green:#0DB876;--green-l:#E8FAF3;
+  --red:#F5222D;--red-l:#FFF1F0;
+  --blue:#1677FF;--blue-l:#EEF5FF;
+  --purple:#7B3FE4;--purple-l:#F3EEFF;
+  --orange:#FF6B1A;--orange-l:#FFF3EC;
+  --radius:10px;--rs:6px;--sidebar:185px;--header:52px;
+}
+html{font-size:13px}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+/* 全局滚动条 */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+/* 双栏布局：flex 方案，左侧 flex:1 自适应，右侧固定宽度 */
+.two-col-layout{display:flex;gap:10px;align-items:flex-start}
+.two-col-layout .col-main{flex:1;min-width:0;overflow:hidden}
+.two-col-layout .col-side{flex-shrink:0;width:220px;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;max-height:calc(100vh - 180px);overflow-y:auto;overflow-x:hidden}
+/* panel-bd 带滚动限制 */
+.panel-bd-scroll{padding:12px 14px;overflow-y:auto}
+/* ---- 信息层级规范 ----
+   核心指标: 大号粗体 + 功能色
+   次要标签: text3 不加粗
+   辅助文字: text3 10px
+*/
+/* stat-card 强化主次 */
+.stat-card .stat-val{font-size:22px;font-weight:800;color:var(--text);line-height:1;margin-bottom:2px}
+.stat-card .stat-lbl{font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:400}
+/* 卡片降噪：统一用白底+细边框，去掉背景色块 */
+.card-clean{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;transition:box-shadow .15s}
+.card-clean:hover{box-shadow:0 4px 14px rgba(0,0,0,0.07)}
+/* 数据行：关键值突出，次要值缩小 */
+.metric-grid{display:grid;gap:6px}
+.metric-item{background:var(--bg2);border-radius:var(--rs);padding:6px 10px;text-align:center}
+.metric-item .mv{font-size:14px;font-weight:700;color:var(--text);line-height:1.2}
+.metric-item .ml{font-size:10px;color:var(--text3);margin-top:2px}
+/* 风险/状态标识：更克制 */
+.risk-low{font-size:10px;background:var(--green-l);color:var(--green);padding:2px 7px;border-radius:4px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.risk-med{font-size:10px;background:var(--yellow-l);color:var(--yellow-d);padding:2px 7px;border-radius:4px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.risk-high{font-size:10px;background:var(--red-l);color:var(--red);padding:2px 7px;border-radius:4px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+/* 列表行 hover */
+.list-row{padding:10px 14px;border-bottom:1px solid var(--border);transition:background .12s;cursor:pointer}
+.list-row:last-child{border-bottom:none}
+.list-row:hover{background:var(--bg2)}
+.header{height:var(--header);background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.logo-mark{width:28px;height:28px;background:var(--yellow);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#000;letter-spacing:-1px;flex-shrink:0}
+.logo-text{font-size:14px;font-weight:700;color:var(--text)}
+.logo-text em{font-style:normal;color:var(--yellow-d)}
+.hdiv{width:1px;height:20px;background:var(--border)}
+.breadcrumb{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:5px}
+.breadcrumb b{color:var(--text);font-weight:500}
+.hspace{flex:1}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-run{background:var(--green-l);color:var(--green);border:1px solid rgba(13,184,118,0.2)}
+.badge-phase{background:var(--yellow-l);color:var(--yellow-d);border:1px solid var(--border-y)}
+.dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.hav{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--yellow),#FF8C42);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000}
+.layout{display:flex;flex:1;overflow:hidden}
+.sidebar{width:var(--sidebar);background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sb-sec{padding:14px 10px 6px}
+.sb-lbl{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;padding:0 8px;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--rs);cursor:pointer;color:var(--text2);font-size:12px;transition:all .15s;position:relative;margin-bottom:1px}
+.nav-item:hover{background:var(--bg2);color:var(--text)}
+.nav-item.active{background:var(--yellow-l);color:var(--yellow-d);font-weight:600}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:16px;background:var(--yellow);border-radius:0 3px 3px 0}
+.nav-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.nav-cnt{margin-left:auto;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:600;background:var(--red-l);color:var(--red)}
+.nav-cnt.g{background:var(--green-l);color:var(--green)}
+.nav-cnt.y{background:var(--yellow-l);color:var(--yellow-d)}
+.sbdiv{height:1px;background:var(--border);margin:6px 10px}
+.phase-card{margin:10px;padding:12px;background:linear-gradient(135deg,#FFFBEA,#FFF4CC);border:1px solid var(--border-y);border-radius:var(--radius)}
+.phase-title{font-size:11px;font-weight:700;color:var(--yellow-d);margin-bottom:5px}
+.phase-desc{font-size:11px;color:var(--text2);line-height:1.6}
+.phase-bar{margin-top:8px;height:4px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden}
+.phase-fill{height:100%;background:linear-gradient(90deg,var(--yellow),#FF8C42);border-radius:2px;width:0;transition:width 1s ease}
+.phase-meta{margin-top:4px;font-size:10px;color:var(--text3);display:flex;justify-content:space-between}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.tab-bar{display:flex;align-items:center;background:var(--bg1);border-bottom:1px solid var(--border);padding:0 16px;flex-shrink:0;overflow:hidden}
+.tab{padding:12px 14px;cursor:pointer;font-size:12px;color:var(--text2);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--yellow-d);border-bottom-color:var(--yellow);font-weight:600}
+.content{flex:1;overflow-y:auto;padding:14px 26px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.panel{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.panel-hd{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);background:var(--bg1)}
+.panel-title{font-size:13px;font-weight:600;color:var(--text)}
+.panel-bd{padding:12px 14px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
+.sc-y::after{background:linear-gradient(90deg,var(--yellow),var(--yellow-m))}
+.sc-g::after{background:var(--green)}
+.sc-b::after{background:var(--blue)}
+.sc-p::after{background:var(--purple)}
+.sc-o::after{background:var(--orange)}
+.sc-r::after{background:var(--red)}
+.stat-lbl{font-size:11px;color:var(--text2);margin-bottom:6px}
+.stat-val{font-size:20px;font-weight:800;color:var(--text);line-height:1;margin-bottom:4px}
+.stat-val span{font-size:12px;font-weight:400;color:var(--text2)}
+.stat-chg{font-size:10px;display:flex;align-items:center;gap:3px}
+.chg-up{color:var(--green)}
+.chg-warn{color:var(--orange)}
+.chg-dn{color:var(--red)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--rs);font-size:12px;font-weight:500;cursor:pointer;border:none;outline:none;transition:all .15s;flex-shrink:0}
+.btn-y{background:var(--yellow);color:#000;box-shadow:0 1px 3px rgba(255,209,0,0.3)}
+.btn-y:hover{background:var(--yellow-m)}
+.btn-g{background:var(--bg1);color:var(--text2);border:1px solid var(--border)}
+.btn-g:hover{border-color:var(--yellow-d);color:var(--yellow-d)}
+.btn-danger{background:var(--red-l);color:var(--red);border:1px solid rgba(245,34,45,0.15)}
+.btn-success{background:var(--green-l);color:var(--green);border:1px solid rgba(13,184,118,0.2)}
+.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500;margin:1px}
+.tag-b{background:var(--blue-l);color:var(--blue)}
+.tag-g{background:var(--green-l);color:var(--green)}
+.tag-p{background:var(--purple-l);color:var(--purple)}
+.tag-o{background:var(--orange-l);color:var(--orange)}
+.tag-y{background:var(--yellow-l);color:var(--yellow-d)}
+.tag-r{background:var(--red-l);color:var(--red)}
+.chip{padding:3px 9px;border-radius:20px;border:1px solid var(--border);background:var(--bg1);font-size:11px;color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.chip:hover{border-color:var(--yellow-d);color:var(--yellow-d)}
+.chip.on{background:var(--yellow-l);border-color:var(--border-y);color:var(--yellow-d);font-weight:600}
+.sb{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500}
+.sb::before{content:'';width:4px;height:4px;border-radius:50%;background:currentColor}
+.sb-rev{color:var(--orange);background:var(--orange-l)}
+.sb-ok{color:var(--green);background:var(--green-l)}
+.sb-ai{color:var(--blue);background:var(--blue-l)}
+.sb-no{color:var(--red);background:var(--red-l)}
+.ab{padding:3px 6px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid;transition:all .15s;font-weight:500;white-space:nowrap}
+.ab-ok{border-color:rgba(13,184,118,0.3);color:var(--green);background:var(--green-l)}
+.ab-ok:hover{background:rgba(13,184,118,0.2)}
+.ab-no{border-color:rgba(245,34,45,0.2);color:var(--red);background:var(--red-l)}
+.ab-no:hover{background:rgba(245,34,45,0.12)}
+.ab-v{border-color:var(--border);color:var(--text2);background:var(--bg1)}
+.ab-v:hover{border-color:var(--yellow-d);color:var(--yellow-d)}
+
+/* ---- PROJECT SWITCHER ---- */
+.proj-switcher{display:flex;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:nowrap;overflow-x:auto}
+.proj-chip{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg1);font-size:11px;cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap}
+.proj-chip:hover{border-color:var(--yellow-d)}
+.proj-chip.active{background:var(--yellow-l);border-color:var(--border-y);font-weight:600;color:var(--yellow-d)}
+.proj-biz{font-size:9px;color:var(--text3);margin-top:1px}
+.proj-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* ---- BUDGET BAR ---- */
+.budget-bar-wrap{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.budget-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.budget-title{font-size:12px;font-weight:600;color:var(--text)}
+.budget-summary{display:flex;gap:16px;font-size:11px;color:var(--text2)}
+.budget-summary b{color:var(--text);font-weight:700}
+.budget-projects{display:flex;flex-direction:column;gap:8px}
+.bp-row{display:flex;align-items:center;gap:10px}
+.bp-name{font-size:11px;font-weight:500;color:var(--text);width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bp-bar-bg{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;position:relative}
+.bp-bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.bp-bar-over{position:absolute;top:0;right:0;height:100%;background:var(--red);opacity:.6;border-radius:0 4px 4px 0}
+.bp-nums{display:flex;gap:8px;font-size:10px;flex-shrink:0;min-width:160px;justify-content:flex-end}
+.bp-spent{color:var(--text);font-weight:600}
+.bp-total{color:var(--text3)}
+.bp-roi{font-weight:700;min-width:32px;text-align:right}
+.bp-alert{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;flex-shrink:0}
+.alert-over{background:var(--red-l);color:var(--red)}
+.alert-slow{background:var(--orange-l);color:var(--orange)}
+.alert-ok{background:var(--green-l);color:var(--green)}
+
+/* ---- INFLUENCER TABLE ---- */
+.inf-table-wrap{overflow-x:auto}
+.inf-table{width:100%;border-collapse:collapse;min-width:520px}
+.inf-table th{padding:8px 10px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.4px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--border);background:var(--bg2);white-space:nowrap}
+.inf-table td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle;white-space:nowrap}
+.inf-table tr:last-child td{border-bottom:none}
+.inf-table tr:hover td{background:rgba(240,242,245,0.6)}
+.inf-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.inf-info{display:flex;align-items:center;gap:8px}
+.inf-name{font-weight:600;font-size:12px;color:var(--text)}
+.inf-plat{font-size:10px;color:var(--text3);margin-top:1px}
+.score-bar{width:40px;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:3px auto 0}
+.sf-hi{background:linear-gradient(90deg,var(--green),#44E0A0)}
+.sf-md{background:linear-gradient(90deg,var(--orange),#FFAA70)}
+.sf-lo{background:linear-gradient(90deg,var(--red),#FF8080)}
+
+/* ---- CONTENT PAGE ---- */
+.cont-group{margin-bottom:14px}
+.cont-group-hd{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-radius:var(--rs) var(--rs) 0 0;border:1px solid var(--border);border-bottom:none}
+.cont-group-title{font-size:12px;font-weight:600;color:var(--text)}
+.cont-group-meta{font-size:11px;color:var(--text2);margin-left:auto;display:flex;gap:10px;align-items:center}
+.cont-list{border:1px solid var(--border);border-radius:0 0 var(--rs) var(--rs);overflow:hidden}
+.cont-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--bg1);transition:background .15s}
+.cont-row:last-child{border-bottom:none}
+.cont-row:hover{background:var(--bg2)}
+.cont-thumb{width:40px;height:40px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.cont-info{flex:1;min-width:140px;overflow:hidden}
+.cont-title{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;min-width:0}
+.cont-sub{font-size:10px;color:var(--text3);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cont-scores{display:flex;gap:4px;flex-shrink:0}
+.cscore{display:flex;flex-direction:column;align-items:center;min-width:30px}
+.cscore-val{font-size:13px;font-weight:700}
+.cscore-lbl{font-size:9px;color:var(--text3)}
+.cont-cost{font-size:11px;color:var(--text2);flex-shrink:0;min-width:68px;text-align:right}
+.cont-cost b{color:var(--text);font-weight:600}
+.cont-actions{display:flex;gap:4px;flex-shrink:0}
+
+/* ---- DELIVERY PAGE ---- */
+.budget-overview{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.proj-budget-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.pbc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.pbc-name{font-size:12px;font-weight:600;color:var(--text)}
+.pbc-biz{font-size:10px;color:var(--text3);margin-top:1px}
+.pbc-bar-bg{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:8px;position:relative}
+.pbc-bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.pbc-numbers{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.pbc-num{text-align:center}
+.pbc-num-val{font-size:13px;font-weight:700;color:var(--text)}
+.pbc-num-lbl{font-size:9px;color:var(--text3);margin-top:1px}
+.task-stream{display:flex;flex-direction:column;gap:6px}
+.ti{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--bg1);border-radius:var(--rs);border:1px solid var(--border);transition:all .2s}
+.ti:hover{border-color:var(--border-y);box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.ti.run{border-left:3px solid var(--blue);background:var(--blue-l)}
+.ti.done{border-left:3px solid var(--green);background:rgba(13,184,118,0.04)}
+.ti.pend{border-left:3px solid var(--border);background:var(--bg2)}
+.ti.warn{border-left:3px solid var(--orange);background:var(--orange-l)}
+.ti-icon{font-size:14px;margin-top:1px;flex-shrink:0}
+.ti-body{flex:1}
+.ti-name{font-size:12px;font-weight:500;color:var(--text);margin-bottom:2px}
+.ti-meta{font-size:11px;color:var(--text2)}
+.pring{position:relative;width:22px;height:22px;flex-shrink:0;margin-top:2px}
+.pring svg{transform:rotate(-90deg)}
+.pr-bg{fill:none;stroke:rgba(0,0,0,0.08);stroke-width:3}
+.pr-fill{fill:none;stroke:var(--blue);stroke-width:3;stroke-linecap:round;stroke-dasharray:57}
+.mini-chart{display:flex;align-items:flex-end;gap:2px;height:32px}
+.mc-bar{width:6px;border-radius:2px 2px 0 0;transition:height .5s ease}
+
+/* ---- TODAY VIEW ---- */
+.today-hero{background:linear-gradient(135deg,#FFFBEA 0%,#FFFFFF 60%,#F0F7FF 100%);border:1px solid var(--border-y);border-radius:12px;padding:18px 22px 20px;position:relative;box-shadow:0 2px 10px rgba(255,209,0,0.08)}
+.today-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,209,0,0.1),transparent 70%);pointer-events:none}
+.today-greeting{font-size:17px;font-weight:800;color:var(--text);margin-bottom:3px}
+.today-sub{font-size:12px;color:var(--text2);margin-bottom:14px}
+.today-metrics{display:flex;gap:18px}
+.tm{display:flex;flex-direction:column;gap:2px}
+.tm-val{font-size:20px;font-weight:800;color:var(--text);line-height:1}
+.tm-lbl{font-size:10px;color:var(--text2)}
+.tm-divider{width:1px;background:var(--border);align-self:stretch}
+.heartbeat-bar{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.hb-agent{display:flex;align-items:center;gap:7px;padding-right:14px;border-right:1px solid var(--border);flex-shrink:0}
+.hb-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-l);animation:pulse 1.5s ease-in-out infinite;flex-shrink:0}
+.hb-tasks{display:flex;gap:10px;flex:1;overflow:hidden}
+.hb-task{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.hb-task-text{font-size:11px;color:var(--text2);white-space:nowrap}
+.hb-task-pct{font-size:11px;font-weight:700;color:var(--blue)}
+.flywheel{background:linear-gradient(135deg,var(--purple-l),var(--bg1));border:1px solid rgba(123,63,228,0.15);border-radius:var(--radius);padding:12px 14px}
+.fw-title{font-size:12px;font-weight:700;color:var(--purple);margin-bottom:9px;display:flex;align-items:center;gap:6px}
+.fw-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.fw-m{text-align:center;background:rgba(255,255,255,0.7);border-radius:var(--rs);padding:7px}
+.fw-m-val{font-size:17px;font-weight:800;color:var(--purple)}
+.fw-m-lbl{font-size:10px;color:var(--text2);margin-top:1px}
+.fw-m-chg{font-size:10px;color:var(--green);margin-top:1px}
+.aq-item{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);transition:all .2s}
+.aq-item:hover{box-shadow:0 3px 10px rgba(0,0,0,0.06)}
+.aq-item.urgent{border-left:3px solid var(--orange);background:linear-gradient(90deg,var(--orange-l),var(--bg1) 25%)}
+.aq-item.ai-done{border-left:3px solid var(--green);background:linear-gradient(90deg,var(--green-l),var(--bg1) 25%)}
+.aq-avatar{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;background:var(--bg2)}
+.aq-body{flex:1;min-width:0}
+.aq-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
+.aq-desc{font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:7px}
+.aq-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px}
+.aq-actions{display:flex;gap:5px;align-items:center}
+.aq-time{font-size:10px;color:var(--text3);margin-left:auto}
+
+/* ---- AGENT PANEL ---- */
+.agent-panel{position:fixed;right:0;top:var(--header);bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;z-index:150;box-shadow:-4px 0 20px rgba(0,0,0,0.08)}
+.agent-panel.open{transform:translateX(0)}
+.ag-toggle{position:fixed;right:0;top:50%;transform:translateY(-50%);width:20px;height:68px;background:var(--bg1);border:1px solid var(--border-y);border-right:none;border-radius:8px 0 0 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;z-index:999;transition:right .3s ease,background .15s;overflow:hidden;box-shadow:-2px 0 8px rgba(0,0,0,0.06)}
+.ag-toggle-arrow{font-size:11px;color:var(--text3);line-height:1;transform:rotate(180deg);transition:transform .3s;display:block}
+.ag-toggle-label{font-size:9px;font-weight:700;color:var(--yellow-d);line-height:1;letter-spacing:.5px}
+.ag-toggle.open{right:300px}
+.ag-toggle.open .ag-toggle-arrow{transform:rotate(0deg);color:var(--yellow-d)}
+.ag-toggle:hover{background:var(--yellow-l)}
+.ag-hd{padding:11px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg1)}
+.ag-av{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:14px}
+.ag-name{font-size:13px;font-weight:600;color:var(--text)}
+.ag-status{font-size:11px;color:var(--green);margin-left:auto;display:flex;align-items:center;gap:4px}
+.ag-msgs{flex:1;overflow-y:auto;padding:11px;display:flex;flex-direction:column;gap:9px}
+.msg-ai .mb{background:var(--bg2);border:1px solid var(--border);border-radius:4px 10px 10px 10px;padding:8px 10px;font-size:11.5px;line-height:1.65;color:var(--text)}
+.msg-me .mb{background:var(--yellow-l);border:1px solid var(--border-y);border-radius:10px 4px 10px 10px;padding:8px 10px;font-size:11.5px;line-height:1.65;color:var(--text)}
+.msg-who{font-size:10px;color:var(--text3);margin-bottom:3px;display:flex;align-items:center;gap:3px}
+.msg-t{color:var(--text3);margin-left:auto}
+.hl{display:inline-block;padding:1px 5px;border-radius:3px;background:var(--yellow-l);color:var(--yellow-d);font-weight:700;font-size:11px}
+.mc{margin-top:6px;background:var(--bg3);border-radius:4px;padding:6px 8px;font-size:10px;font-family:monospace;color:var(--text2);line-height:1.6}
+.ag-acts{padding:9px 11px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;background:var(--bg2)}
+.ag-qas{display:flex;flex-wrap:wrap;gap:4px}
+.qb{padding:3px 8px;border-radius:20px;font-size:11px;border:1px solid var(--border);color:var(--text2);background:var(--bg1);cursor:pointer;transition:all .15s}
+.qb:hover{border-color:var(--yellow-d);color:var(--yellow-d)}
+.ag-input-row{display:flex;gap:6px}
+.ag-input{flex:1;background:var(--bg1);border:1px solid var(--border);border-radius:var(--rs);padding:7px 9px;color:var(--text);font-size:12px;outline:none}
+.ag-input:focus{border-color:var(--yellow-d)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.2);z-index:199;display:none;backdrop-filter:blur(2px)}
+.overlay.on{display:block}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:460px;background:var(--bg1);border-left:1px solid var(--border);z-index:200;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;box-shadow:-8px 0 32px rgba(0,0,0,0.12)}
+.drawer.on{transform:translateX(0)}
+.dr-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg1)}
+.dr-title{font-size:14px;font-weight:700;color:var(--text)}
+.dr-close{margin-left:auto;width:26px;height:26px;border-radius:6px;background:var(--bg2);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:13px;transition:all .15s}
+.dr-close:hover{border-color:var(--yellow-d);color:var(--yellow-d)}
+.dr-body{flex:1;overflow-y:auto;padding:18px}
+.dr-sec{margin-bottom:16px}
+.dr-sec-title{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.m-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.03)}
+.m-lbl{font-size:12px;color:var(--text2)}
+.m-val{font-size:12px;font-weight:600;color:var(--text)}
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:7px}
+.toast{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 13px;display:flex;align-items:center;gap:8px;min-width:260px;max-width:340px;animation:slideIn .3s ease;box-shadow:0 6px 20px rgba(0,0,0,0.1)}
+@keyframes slideIn{from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast-icon{font-size:16px}
+.toast-text{font-size:12px;flex:1;line-height:1.5;color:var(--text)}
+.toast.ok{border-left:3px solid var(--green)}
+.toast.warn{border-left:3px solid var(--orange)}
+.toast.info{border-left:3px solid var(--blue)}
+.fade-in{animation:fadeIn .4s ease forwards}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.ty{color:var(--yellow-d)}.tg{color:var(--green)}.tr{color:var(--red)}.tb{color:var(--blue)}.td{color:var(--text2)}.fw7{font-weight:700}
+</style>
+</head>
+<body>
+<header class="header">
+  <div style="display:flex;align-items:center;gap:9px">
+    <div class="logo-mark">MT</div>
+    <div class="logo-text"><em>AI营销</em>工作台</div>
+  </div>
+  <div class="hdiv"></div>
+  <div class="breadcrumb"><span>内容营销中心</span><span>›</span><b>执行端工作台</b></div>
+  <div class="hspace"></div>
+  <div style="display:flex;gap:7px;align-items:center">
+    <span class="badge badge-run"><span class="dot"></span>7 个 Agent 运行中</span>
+    <span style="font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px;padding:3px 9px;background:var(--green-l);border-radius:20px;border:1px solid rgba(13,184,118,0.2)"><span style="width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s ease-in-out infinite"></span>系统健康</span>
+    <span class="badge badge-phase">⚡ 一阶段 · 4~6月</span>
+  </div>
+  <div class="hdiv"></div>
+  <div class="hav">李</div>
+</header>
+<div class="ag-toggle" id="agToggle" onclick="toggleAgent()">
+  <span class="ag-toggle-arrow">&#10095;</span>
+  <span class="ag-toggle-label">AI</span>
+</div>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sb-sec">
+      <div class="sb-lbl">工作台</div>
+      <div class="nav-item active" onclick="switchTab('today',this)"><span class="nav-icon">🏠</span>今日战情室</div>
+      <div class="nav-item" onclick="switchTab('influencer',this)"><span class="nav-icon">⭐</span>达人选号<span class="nav-cnt">8</span></div>
+      <div class="nav-item" onclick="switchTab('content',this)"><span class="nav-icon">✍️</span>内容生产 & 审核<span class="nav-cnt">12</span></div>
+      <div class="nav-item" onclick="switchTab('delivery',this)"><span class="nav-icon">🚀</span>投放执行<span class="nav-cnt y">进行中</span></div>
+    </div>
+    <div class="sbdiv"></div>
+    <div class="sb-sec">
+      <div class="sb-lbl">资产中心</div>
+      <div class="nav-item" onclick="switchTab('asset-content',this)"><span class="nav-icon">🗄️</span>内容库</div>
+      <div class="nav-item" onclick="switchTab('asset-inf',this)"><span class="nav-icon">👥</span>达人库</div>
+      <div class="nav-item" onclick="switchTab('asset-attr',this)"><span class="nav-icon">📊</span>数据归因</div>
+      <div class="nav-item" onclick="switchTab('asset-kb',this)"><span class="nav-icon">🧠</span>营销知识库</div>
+    </div>
+    <div class="sbdiv"></div>
+    <div class="sb-sec">
+      <div class="sb-lbl">AI 能力</div>
+      <div class="nav-item" onclick="switchTab('ai-writer',this)"><span class="nav-icon">🤖</span>AI 写手<span class="nav-cnt g">在线</span></div>
+      <div class="nav-item" onclick="switchTab('ai-selector',this)"><span class="nav-icon">🔍</span>AI 选号<span class="nav-cnt g">在线</span></div>
+      <div class="nav-item" onclick="switchTab('ai-auditor',this)"><span class="nav-icon">✅</span>AI 审稿<span class="nav-cnt g">在线</span></div>
+      <div class="nav-item" onclick="switchTab('ai-delivery',this)"><span class="nav-icon">📈</span>AI 投放优化<span class="nav-cnt g">在线</span></div>
+    </div>
+    <div class="sbdiv"></div>
+    <div class="phase-card">
+      <div class="phase-title">🎯 一阶段目标</div>
+      <div class="phase-desc">运营执行人力释放 40%<br/>经验沉淀 → AI 复利飞轮</div>
+      <div class="phase-bar"><div class="phase-fill" id="pf"></div></div>
+      <div class="phase-meta"><span>整体进度</span><span class="ty fw7">35%</span></div>
+    </div>
+  </nav>
+  <main class="main">
+    <div class="tab-bar" id="tabBar"></div>
+    <div class="content" id="mainContent"></div>
+  </main>
+  <aside class="agent-panel" id="agentPanel">
+    <div class="ag-hd">
+      <div class="ag-av">🤖</div>
+      <div><div class="ag-name">营销 AI 助手</div><div style="font-size:10px;color:var(--text3)">Powered by Harness</div></div>
+      <div class="ag-status"><span class="dot" style="background:var(--green)"></span>在线</div>
+    </div>
+    <div class="ag-msgs" id="agMsgs">
+      <div class="msg-ai fade-in">
+        <div class="msg-who">🤖 AI助手 <span class="msg-t">刚刚</span></div>
+        <div class="mb">你好，李亚东。今日概览：<br/><br/>
+          · <span class="hl">4</span> 个项目有决策事项<br/>
+          · 外卖夏季促销预算消耗 <span class="hl">68%</span>，ROI 达标<br/>
+          · 酒店暑期营销 ROI 偏低，建议调整策略<br/><br/>
+          AI选号已完成 3 个项目的达人扫描，共推荐 18 位。
+        </div>
+      </div>
+    </div>
+    <div class="ag-acts">
+      <div class="ag-qas">
+        <span class="qb" onclick="agentCmd('各项目预算状态')">💰 预算状态</span>
+        <span class="qb" onclick="agentCmd('今日投放数据')">📊 投放数据</span>
+        <span class="qb" onclick="agentCmd('待审核内容')">✅ 待审内容</span>
+        <span class="qb" onclick="agentCmd('导出本周报告')">📥 导出报告</span>
+      </div>
+      <div class="ag-input-row">
+        <input class="ag-input" id="agIn" placeholder="问 AI 或下达任务..." onkeydown="if(event.key==='Enter')sendAgent()"/>
+        <button class="btn btn-y" onclick="sendAgent()" style="padding:6px 11px">→</button>
+      </div>
+    </div>
+  </aside>
+</div>
+<div class="overlay" id="agOv" onclick="toggleAgent()" style="z-index:149"></div>
+<div class="overlay" id="ov" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="dr-hd"><div class="dr-title" id="drTitle">详情</div><div class="dr-close" onclick="closeDrawer()">✕</div></div>
+  <div class="dr-body" id="drBody"></div>
+</div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+/* ======================================================
+   DATA: 多业务线 / 多项目 / 预算追踪
+   ====================================================== */
+
+// 项目数据：每个项目挂在某个业务线下，有独立预算
+const PROJECTS = [
+  // 外卖业务线
+  { id:'wm_summer', biz:'外卖', name:'夏季促销', color:'#FF6B1A', budgetTotal:120, budgetSpent:81.6, dailyBudget:8, dailySpent:6.2, roi:4.2, roiTarget:3.8, status:'ok' },
+  { id:'wm_newuser', biz:'外卖', name:'新用户拉新', color:'#FF6B1A', budgetTotal:60, budgetSpent:22.8, dailyBudget:4, dailySpent:2.1, roi:2.9, roiTarget:3.5, status:'warn' },
+  // 酒店业务线
+  { id:'hotel_summer', biz:'酒店', name:'暑期亲子游', color:'#1677FF', budgetTotal:80, budgetSpent:18.4, dailyBudget:6, dailySpent:1.8, roi:2.1, roiTarget:3.0, status:'alert' },
+  { id:'hotel_biz', biz:'酒店', name:'商务出行', color:'#1677FF', budgetTotal:40, budgetSpent:31.2, dailyBudget:3, dailySpent:2.9, roi:3.8, roiTarget:3.5, status:'ok' },
+  // 乐生活业务线
+  { id:'life_spa', biz:'乐生活', name:'美容美体节', color:'#7B3FE4', budgetTotal:50, budgetSpent:12.5, dailyBudget:3.5, dailySpent:3.3, roi:4.5, roiTarget:4.0, status:'ok' },
+  // 闪购业务线
+  { id:'flash_618', biz:'闪购', name:'618大促收尾', color:'#0DB876', budgetTotal:90, budgetSpent:87.3, dailyBudget:5, dailySpent:4.8, roi:5.1, roiTarget:4.5, status:'ok' },
+];
+
+// 当前选中的项目（达人选号页用）
+let curProjId = 'wm_summer';
+
+// 达人数据：每位达人关联项目
+const INF = [
+  // 外卖-夏季促销
+  { id:1, proj:'wm_summer', name:'小食记Ellie', plat:'小红书', cat:'美食/生活', fans:'58.2万', er:'6.8%', avgView:'24.8万', score:92, dims:['高互动','美食垂类','新客拉新'], histRoi:'4.8x', histCoops:3, fee:12000, status:'review', color:'#FF8C42',
+    brief:'专注美食探店，粉丝粘性极高，3次合作平均ROI 4.8x。粉丝画像：67%女性、78%在18-35岁、52%一线城市，与外卖夏季营销新客拉新目标高度匹配。',
+    metrics:{'粉丝数':'58.2万','近30日互动率':'6.8%','近30日互动率趋势':'↑稳定','平均播放量':'24.8万','历史合作次数':'3次','历史平均ROI':'4.8x','历史完成率':'100%','粉丝画像·女':'67%','粉丝18-35岁':'78%','一线城市占比':'52%'}},
+  { id:2, proj:'wm_summer', name:'城市吃货报告', plat:'抖音', cat:'美食/城市', fans:'134.6万', er:'4.2%', avgView:'61.3万', score:88, dims:['高曝光','泛美食','ROI稳定'], histRoi:'3.9x', histCoops:5, fee:28000, status:'approved', color:'#1677FF',
+    brief:'百万粉丝美食达人，内容风格轻松，覆盖广，5次合作均稳定完成KPI，ROI 3.9x。适合大曝光诉求。',
+    metrics:{'粉丝数':'134.6万','近30日互动率':'4.2%','近30日互动率趋势':'→持平','平均播放量':'61.3万','历史合作次数':'5次','历史平均ROI':'3.9x','历史完成率':'100%','粉丝画像·女':'54%','粉丝18-35岁':'71%','一线城市占比':'48%'}},
+  { id:3, proj:'wm_summer', name:'深夜食堂阿满', plat:'小红书', cat:'深夜美食', fans:'22.1万', er:'9.3%', avgView:'8.6万', score:85, dims:['超高互动','夜间场景','首次合作'], histRoi:'-', histCoops:0, fee:5500, status:'review', color:'#7B3FE4',
+    brief:'新锐达人，体量较小但互动率极高（9.3%，行业均值3.2%）。夜间外卖、深夜下单场景高度贴合。首次合作，建议小额测试，预估ROI 4.5x+。',
+    metrics:{'粉丝数':'22.1万','近30日互动率':'9.3%（行业均值3.2%）','平均播放量':'8.6万','历史合作次数':'0次（首次）','预估ROI':'4.5x+','粉丝画像·女':'61%','粉丝18-30岁':'83%','一二线城市':'74%'}},
+  { id:4, proj:'wm_summer', name:'美味探店vlog', plat:'抖音', cat:'探店', fans:'89.4万', er:'2.1%', avgView:'32.7万', score:67, dims:['互动率下滑↓22%','报价偏高','需复核'], histRoi:'2.8x', histCoops:2, fee:21000, status:'review', color:'#F5222D',
+    brief:'⚠️ 近30天互动率从4.8%降至2.1%（环比-56%），可能账号进入瓶颈期。历史合作ROI仅2.8x，低于本项目目标3.8x。AI建议：降低合作优先级 或 重新谈判报价至¥12,000以内。',
+    metrics:{'粉丝数':'89.4万','近30日互动率':'2.1% ⚠️较上月-56%','互动率趋势':'↓持续下滑','平均播放量':'32.7万','历史合作次数':'2次','历史平均ROI':'2.8x（低于目标3.8x）','历史完成率':'80%','粉丝画像·男':'58%','粉丝18-40岁':'69%'}},
+  // 外卖-新用户拉新
+  { id:5, proj:'wm_newuser', name:'健康饮食研究所', plat:'小红书', cat:'健康/营养', fans:'41.8万', er:'7.6%', avgView:'16.4万', score:81, dims:['健康品类','高互动','女性新客'], histRoi:'4.1x', histCoops:2, fee:9800, status:'review', color:'#0DB876',
+    brief:'健康饮食垂类，粉丝81%为女性、年龄25-40岁，与外卖健康轻食新用户拉新目标高度匹配。历史合作ROI 4.1x，超过本项目目标3.5x。',
+    metrics:{'粉丝数':'41.8万','近30日互动率':'7.6%','平均播放量':'16.4万','历史合作次数':'2次','历史平均ROI':'4.1x','历史完成率':'100%','粉丝画像·女':'81%','粉丝25-40岁':'72%','一二线城市':'68%'}},
+  // 酒店-暑期亲子游
+  { id:6, proj:'hotel_summer', name:'旅行家阿白', plat:'小红书', cat:'亲子/旅游', fans:'76.3万', er:'5.9%', avgView:'28.4万', score:87, dims:['亲子场景','高互动','酒店垂类'], histRoi:'3.6x', histCoops:1, fee:18000, status:'review', color:'#1677FF',
+    brief:'亲子旅游垂类头部达人，粉丝78%为25-40岁女性，暑期亲子出游场景完全匹配。上次合作ROI 3.6x，高于本项目目标3.0x。',
+    metrics:{'粉丝数':'76.3万','近30日互动率':'5.9%','平均播放量':'28.4万','历史合作次数':'1次','历史平均ROI':'3.6x','历史完成率':'100%','粉丝画像·女':'78%','粉丝25-40岁':'68%','亲子内容占比':'72%'}},
+  // 乐生活-美容美体
+  { id:7, proj:'life_spa', name:'美容日记小鹿', plat:'小红书', cat:'美容/美体', fans:'33.7万', er:'8.4%', avgView:'12.1万', score:90, dims:['高互动','美容垂类','精准女性'], histRoi:'5.2x', histCoops:4, fee:8500, status:'approved', color:'#7B3FE4',
+    brief:'美容美体垂类高互动达人，粉丝92%为女性，20-35岁，与乐生活美容美体节目标人群精准匹配。4次合作ROI均超5x，强烈推荐续约。',
+    metrics:{'粉丝数':'33.7万','近30日互动率':'8.4%','平均播放量':'12.1万','历史合作次数':'4次','历史平均ROI':'5.2x','历史完成率':'100%','粉丝画像·女':'92%','粉丝20-35岁':'79%'}},
+  // 闪购-618
+  { id:8, proj:'flash_618', name:'省钱达人老王', plat:'抖音', cat:'电商/省钱', fans:'211.4万', er:'3.8%', avgView:'89.2万', score:84, dims:['超高曝光','电商转化强','618场景'], histRoi:'4.7x', histCoops:6, fee:45000, status:'approved', color:'#0DB876',
+    brief:'电商省钱类头部达人，618大促场景专属高转化内容，6次合作平均ROI 4.7x。本次618收尾期高曝光冲量首选，预算已确认。',
+    metrics:{'粉丝数':'211.4万','近30日互动率':'3.8%','平均播放量':'89.2万','历史合作次数':'6次','历史平均ROI':'4.7x','历史完成率':'100%','粉丝画像·男':'55%','粉丝20-40岁':'74%','电商购物内容':'86%'}},
+];
+
+// 内容数据：每条关联项目
+const CONT = [
+  { id:1, proj:'wm_summer', title:'夏日外卖必点！美团超级饭票限时立减60元，这个夏天不能错过', type:'图文', plat:'小红书', status:'review', emoji:'🍜', bg:'linear-gradient(135deg,#FFE0B2,#FFCC80)', sc:88, sm:95, sv:82, cost:380, roi:null, ai:'标题吸引力强，制造紧迫感，合规无风险词。建议在分发时给达人留改写空间，增加个性化。', days:1 },
+  { id:2, proj:'wm_summer', title:'探店合肥最火烤肉！人均80元撑死你，美团直接订', type:'视频脚本', plat:'抖音', status:'review', emoji:'🥩', bg:'linear-gradient(135deg,#BBDEFB,#90CAF9)', sc:91, sm:82, sv:85, cost:520, roi:null, ai:'探店转化引导清晰，创意分高。"撑死你"属于夸张表述，有违规风险，建议改为"超值"或由达人口播替换。', days:1 },
+  { id:3, proj:'wm_summer', title:'这个夏天只点美团，5个省钱技巧每月多存1000元', type:'图文', plat:'小红书', status:'approved', emoji:'☀️', bg:'linear-gradient(135deg,#C8E6C9,#A5D6A7)', sc:85, sm:97, sv:79, cost:290, roi:4.6, ai:'已入库。实际上线后互动率+23%超预期，ROI 4.6x超过项目目标3.8x。', days:3 },
+  { id:4, proj:'wm_summer', title:'深夜催泪！凌晨2点这碗热汤，是外卖小哥的温暖', type:'视频脚本', plat:'抖音', status:'review', emoji:'🍲', bg:'linear-gradient(135deg,#E1BEE7,#CE93D8)', sc:94, sm:78, sv:76, cost:680, roi:null, ai:'创意极高（94分），情感共鸣强。合规风险：「催泪」「感动哭了」等情感词抖音可能限流，且无法体现促销转化，建议人工判断是否适配外卖直接转化目标。', days:1 },
+  { id:5, proj:'wm_newuser', title:'第一次用美团外卖？这5步让你省下100元新人礼包', type:'图文', plat:'小红书', status:'review', emoji:'🎁', bg:'linear-gradient(135deg,#FFF9C4,#FFF176)', sc:86, sm:93, sv:88, cost:310, roi:null, ai:'新用户引导逻辑清晰，转化漏斗完整。合规ok，适合小红书新客种草场景。强烈推荐入库。', days:0 },
+  { id:6, proj:'wm_newuser', title:'大学生必看！外卖平台横向比测，美团为什么是我的主力', type:'图文', plat:'小红书', status:'ai_run', emoji:'📱', bg:'linear-gradient(135deg,#E3F2FD,#BBDEFB)', sc:0, sm:0, sv:0, cost:0, roi:null, ai:'AI正在生成内容并进行质检，预计30秒完成...', days:0 },
+  { id:7, proj:'hotel_summer', title:'暑假亲子酒店怎么选？5个维度帮你避坑，美团直接比价', type:'图文', plat:'小红书', status:'review', emoji:'🏨', bg:'linear-gradient(135deg,#E8EAF6,#C5CAE9)', sc:89, sm:96, sv:83, cost:420, roi:null, ai:'亲子选酒店攻略型内容，小红书高搜索量场景，合规ok。转化引导在结尾，可考虑前置。', days:0 },
+  { id:8, proj:'life_spa', title:'618前囤货！美团乐生活美容券攻略，这样买最省钱', type:'图文', plat:'小红书', status:'approved', emoji:'💆', bg:'linear-gradient(135deg,#FCE4EC,#F8BBD9)', sc:91, sm:98, sv:90, cost:350, roi:5.3, ai:'已入库。近7日ROI 5.3x，超项目目标4.0x，该内容被AI标记为「高价值复用模板」。', days:5 },
+  { id:9, proj:'flash_618', title:'618最后48小时！美团闪购这10件商品你不买真的亏了', type:'视频脚本', plat:'抖音', status:'approved', emoji:'⚡', bg:'linear-gradient(135deg,#E8F5E9,#C8E6C9)', sc:93, sm:90, sv:92, cost:580, roi:5.8, ai:'已入库。618冲量高峰内容，ROI 5.8x超预期，建议在今明两天加大达人投放量。', days:2 },
+];
+
+// 投放任务：每个关联项目+业务
+const TASKS = [
+  { id:1, proj:'wm_summer', name:'AI自动配置出价：外卖夏季促销 抖音+小红书', st:'done', meta:'64账户 · 完成 09:10 · oCPC已生效', icon:'✅' },
+  { id:2, proj:'wm_summer', name:'AI投中调优：外卖夏季 美食类目出价优化', st:'run', meta:'已调整12次 · CTR↑8% · 预估今日节省¥2,400', icon:'⚡', prog:68 },
+  { id:3, proj:'hotel_summer', name:'⚠️ 酒店暑期亲子游 ROI预警：当前2.1x，低于目标3.0x', st:'warn', meta:'AI建议：暂停低效账户，向高互动达人内容倾斜', icon:'🚨' },
+  { id:4, proj:'wm_newuser', name:'外卖新用户拉新 参数链接生成 × 达人内容 × UTM', st:'done', meta:'28条链接 · 完成 09:22 · 3个达人已同步', icon:'✅' },
+  { id:5, proj:'flash_618', name:'闪购618收尾 AI监控：CTR/CVR 异常检测', st:'run', meta:'监控中 · 今日触发告警1次（无需处理）', icon:'🔔', prog:100 },
+  { id:6, proj:'life_spa', name:'乐生活美容美体节 RTA策略：新客/复购差异化定向', st:'done', meta:'3策略组 · Skill已配置 · 预估提效15%', icon:'✅' },
+  { id:7, proj:'hotel_biz', name:'酒店商务出行 AI归因报告：本周ROI汇总', st:'pend', meta:'计划周五18:00自动生成', icon:'📊' },
+];
+
+/* ======================================================  INIT  */
+document.addEventListener('DOMContentLoaded', () => {
+  renderPage('today');
+  setTimeout(() => { document.getElementById('pf').style.width = '35%'; }, 700);
+});
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderPage(tab);
+}
+
+function renderPage(tab) {
+  const bar = document.getElementById('tabBar');
+  const mc = document.getElementById('mainContent');
+  if (tab === 'today') {
+    bar.innerHTML = tabHtml([['🏠 今日战情室', true, 'today'], ['📋 待办事项', false, 'todo'], ['📈 周报', false, 'weekly']], '');
+    mc.innerHTML = todayPage();
+  } else if (tab === 'influencer') {
+    bar.innerHTML = tabHtml([['⭐ 达人选号', true], ['📋 合作管理', false], ['📊 选号报告', false]], 'AI选号运行中');
+    mc.innerHTML = infPage();
+  } else if (tab === 'content') {
+    bar.innerHTML = tabHtml([['✍️ 内容生产 & 审核', true], ['📚 内容库', false], ['📈 效果追踪', false]], 'AI写手运行中');
+    mc.innerHTML = contPage();
+  } else if (tab === 'delivery') {
+    bar.innerHTML = tabHtml([['🚀 投放执行', true], ['🔧 账户配置', false], ['📉 实时监控', false]], 'AI投放优化运行中');
+    mc.innerHTML = delPage();
+  } else if (tab === 'asset-content') {
+    bar.innerHTML = tabHtml([['🗄️ 内容库', true], ['📈 效果排行', false], ['🔖 标签管理', false]], '');
+    mc.innerHTML = assetContentPage();
+  } else if (tab === 'asset-inf') {
+    bar.innerHTML = tabHtml([['👥 达人库', true], ['🌟 合作档案', false], ['📋 黑名单', false]], '');
+    mc.innerHTML = assetInfPage();
+  } else if (tab === 'asset-attr') {
+    bar.innerHTML = tabHtml([['📊 数据归因', true], ['📉 ROI拆解', false], ['🗺️ 归因链路', false]], '');
+    mc.innerHTML = assetAttrPage();
+  } else if (tab === 'asset-kb') {
+    bar.innerHTML = tabHtml([['🧠 营销知识库', true], ['🏆 最佳实践', false], ['💡 AI洞察', false]], '');
+    mc.innerHTML = assetKbPage();
+  } else if (tab === 'ai-writer') {
+    bar.innerHTML = tabHtml([['🤖 AI 写手', true], ['⚙️ 写作配置', false], ['📜 生成历史', false]], 'AI写手运行中');
+    mc.innerHTML = aiWriterPage();
+  } else if (tab === 'ai-selector') {
+    bar.innerHTML = tabHtml([['🔍 AI 选号', true], ['⚙️ 选号规则', false], ['📋 扫描历史', false]], 'AI选号运行中');
+    mc.innerHTML = aiSelectorPage();
+  } else if (tab === 'ai-auditor') {
+    bar.innerHTML = tabHtml([['✅ AI 审稿', true], ['⚙️ 审稿规则', false], ['📋 审核记录', false]], 'AI审稿运行中');
+    mc.innerHTML = aiAuditorPage();
+  } else if (tab === 'todo') {
+    bar.innerHTML = tabHtml([['🏠 今日战情室', false, 'today'], ['📋 待办事项', true, 'todo'], ['📈 周报', false, 'weekly']], '');
+    mc.innerHTML = todoPage();
+  } else if (tab === 'weekly') {
+    bar.innerHTML = tabHtml([['🏠 今日战情室', false, 'today'], ['📋 待办事项', false, 'todo'], ['📈 周报', true, 'weekly']], '');
+    mc.innerHTML = weeklyPage();
+  } else {
+    bar.innerHTML = tabHtml([['📈 AI 投放优化', true], ['⚙️ 策略配置', false], ['📋 调优历史', false]], 'AI优化运行中');
+    mc.innerHTML = aiDeliveryPage();
+  }
+}
+
+function tabHtml(tabs, badge) {
+  const t = tabs.map(([l, a, tabId]) => {
+    const click = tabId ? ` onclick="renderPage('${tabId}');this.closest('.tab-bar').querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));this.classList.add('active')"` : '';
+    return `<div class="tab${a ? ' active' : ''}"${click}>${l}</div>`;
+  }).join('');
+  const b = badge ? `<div style="margin-left:auto;padding:0 12px;display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--text2)">${badge}</span><span class="badge badge-run"><span class="dot"></span>进行中</span></div>` : '<div style="flex:1"></div>';
+  return t + b;
+}
+
+/* ====================================================== TODAY PAGE */
+function todayPage() {
+  const now = new Date();
+  const h = now.getHours();
+  const gStr = h < 12 ? '早上好' : h < 18 ? '下午好' : '晚上好';
+  const totalBudget = PROJECTS.reduce((s, p) => s + p.budgetTotal, 0);
+  const totalSpent = PROJECTS.reduce((s, p) => s + p.budgetSpent, 0);
+  const alertProjs = PROJECTS.filter(p => p.status !== 'ok');
+  return `
+  <div class="today-hero fade-in">
+    <div class="today-greeting">${gStr}，李亚东 👋</div>
+    <div class="today-sub">今天是 ${now.getMonth() + 1}月${now.getDate()}日 · 你当前负责 ${PROJECTS.length} 个项目 · AI 已在后台工作 2 小时 34 分钟</div>
+    <div class="today-metrics">
+      <div class="tm"><div class="tm-val" style="color:var(--orange)">${alertProjs.length}</div><div class="tm-lbl">需关注项目</div></div>
+      <div class="tm-divider"></div>
+      <div class="tm"><div class="tm-val">¥${totalSpent.toFixed(0)}<span>万</span></div><div class="tm-lbl">今日已花费（总）</div></div>
+      <div class="tm-divider"></div>
+      <div class="tm"><div class="tm-val" style="color:${(totalSpent/totalBudget)>0.9?'var(--red)':'var(--text)'}">¥${(totalBudget - totalSpent).toFixed(0)}<span>万</span></div><div class="tm-lbl">剩余总预算</div></div>
+      <div class="tm-divider"></div>
+      <div class="tm"><div class="tm-val" style="color:var(--green)">8<span>个</span></div><div class="tm-lbl">待确认事项</div></div>
+    </div>
+  </div>
+  <div class="heartbeat-bar fade-in">
+    <div class="hb-agent"><div class="hb-dot"></div><div><div style="font-size:12px;font-weight:600">🤖 营销 AI Agent</div><div style="font-size:10px;color:var(--green)">7 个任务运行中</div></div></div>
+    <div class="hb-tasks">
+      <div class="hb-task"><span style="font-size:13px">🔍</span><span class="hb-task-text">AI选号</span><span class="hb-task-pct">完成</span></div>
+      <div class="hb-task"><span style="font-size:13px">⚡</span><span class="hb-task-text">投中调优</span><span class="hb-task-pct">68%</span></div>
+      <div class="hb-task"><span style="font-size:13px">✍️</span><span class="hb-task-text">内容生成</span><span class="hb-task-pct">4/6篇</span></div>
+      <div class="hb-task"><span style="font-size:13px">🔔</span><span class="hb-task-text">异常监控</span><span class="hb-task-pct">实时</span></div>
+    </div>
+    <button class="btn btn-g" onclick="switchTab('delivery',document.querySelectorAll('.nav-item')[3])" style="font-size:11px;padding:3px 8px;margin-left:auto">查看详情 →</button>
+  </div>
+  <div class="panel fade-in">
+    <div class="panel-hd">
+      <span style="font-size:15px">💰</span>
+      <div class="panel-title">各项目预算进度</div>
+      <span style="font-size:11px;color:var(--text3);margin-left:auto">点击项目名查看详情</span>
+    </div>
+    <div class="panel-bd">
+      <div class="budget-projects">
+        ${PROJECTS.map(p => {
+          const pct = Math.min(p.budgetSpent / p.budgetTotal * 100, 100);
+          const over = p.budgetSpent > p.budgetTotal;
+          const roiColor = p.roi >= p.roiTarget ? 'var(--green)' : p.roi >= p.roiTarget * 0.8 ? 'var(--orange)' : 'var(--red)';
+          const alertText = p.status === 'alert' ? '⚠️ROI偏低' : p.status === 'warn' ? '⚡进度偏慢' : '✓正常';
+          const alertCls = p.status === 'alert' ? 'alert-over' : p.status === 'warn' ? 'alert-slow' : 'alert-ok';
+          const barColor = pct > 90 ? 'var(--orange)' : pct > 70 ? 'var(--yellow-d)' : 'var(--green)';
+          return `<div class="bp-row">
+            <div class="bp-name" title="${p.biz} · ${p.name}"><span style="color:${p.color};font-weight:600">${p.biz}</span> ${p.name}</div>
+            <div class="bp-bar-bg"><div class="bp-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+            <div class="bp-nums">
+              <span class="bp-spent">¥${p.budgetSpent}万</span>
+              <span class="bp-total">/ ¥${p.budgetTotal}万</span>
+              <span style="font-size:10px;color:var(--text3)">${pct.toFixed(0)}%</span>
+              <span class="bp-roi" style="color:${roiColor}">${p.roi}x</span>
+            </div>
+            <span class="bp-alert ${alertCls}">${alertText}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>
+  <div class="panel fade-in">
+    <div class="panel-hd"><span style="font-size:15px">🎯</span><div class="panel-title">AI 交给你决策的事项</div><span style="font-size:11px;color:var(--text3);margin-left:auto">AI 执行 · 人工确认关键节点</span></div>
+    <div class="panel-bd" style="display:flex;flex-direction:column;gap:7px">
+      <div class="aq-item urgent fade-in">
+        <div class="aq-avatar">⚠️</div>
+        <div class="aq-body">
+          <div class="aq-title">【外卖-夏季促销】美味探店vlog 互动率异常下滑，建议决策是否继续合作</div>
+          <div class="aq-desc">近30天互动率从4.8%↓至2.1%（-56%），历史ROI 2.8x 低于项目目标3.8x。当前已锁定¥21,000达人费，AI 建议：暂停 或 重谈至¥12,000。继续合作预估亏损约¥5,400。</div>
+          <div class="aq-tags"><span class="tag tag-r">互动率-56%</span><span class="tag tag-o">ROI低于目标</span><span class="tag tag-b">已锁定¥21,000</span></div>
+          <div class="aq-actions">
+            <button class="btn btn-danger" onclick="toast('已暂停，AI将推荐替代达人','warn','⏸️')" style="font-size:11px;padding:3px 9px">暂停合作</button>
+            <button class="btn btn-g" onclick="toast('已发起重新谈判流程','info','💬')" style="font-size:11px;padding:3px 9px">重新谈判</button>
+            <span class="aq-time">09:24</span>
+          </div>
+        </div>
+      </div>
+      <div class="aq-item urgent fade-in">
+        <div class="aq-avatar">🚨</div>
+        <div class="aq-body">
+          <div class="aq-title">【酒店-暑期亲子游】ROI持续偏低，预算消耗进度正常但效果不达标</div>
+          <div class="aq-desc">当前ROI 2.1x，目标3.0x，差距30%。已花费¥18.4万/¥80万（23%），剩余预算¥61.6万。AI建议：调整达人内容策略方向，或重新评估是否继续本次活动。</div>
+          <div class="aq-tags"><span class="tag tag-r">ROI 2.1x vs 目标3.0x</span><span class="tag tag-o">剩余¥61.6万待花费</span></div>
+          <div class="aq-actions">
+            <button class="btn btn-y" onclick="toast('已跳转至酒店项目策略调整','info','🔧')" style="font-size:11px;padding:3px 9px">调整策略 →</button>
+            <button class="btn btn-g" onclick="toast('AI已标记，将持续监控','info','👁️')" style="font-size:11px;padding:3px 9px">继续观察</button>
+            <span class="aq-time">09:18</span>
+          </div>
+        </div>
+      </div>
+      <div class="aq-item ai-done fade-in">
+        <div class="aq-avatar">⭐</div>
+        <div class="aq-body">
+          <div class="aq-title">AI选号完成：3个项目共推荐 18 位达人，待你审核确认</div>
+          <div class="aq-desc">外卖夏季促销：4位待确认（含1位互动率异常需人工判断）；外卖新用户拉新：1位待确认；酒店暑期亲子游：1位新达人推荐。</div>
+          <div class="aq-tags"><span class="tag tag-g">18位推荐</span><span class="tag tag-b">3个项目</span><span class="tag tag-o">1位需特别关注</span></div>
+          <div class="aq-actions">
+            <button class="btn btn-y" onclick="switchTab('influencer',document.querySelectorAll('.nav-item')[1])" style="font-size:11px;padding:3px 9px">去确认 →</button>
+            <span class="aq-time">09:10</span>
+          </div>
+        </div>
+      </div>
+      <div class="aq-item ai-done fade-in">
+        <div class="aq-avatar">✍️</div>
+        <div class="aq-body">
+          <div class="aq-title">AI写手完成 6 篇内容生产，其中 2 篇有合规风险需你审核</div>
+          <div class="aq-desc">「探店烤肉」视频脚本含夸张表述需修改；「深夜催泪」情感类内容与外卖直接转化目标可能不匹配，需人工判断。其余4篇可一键入库。</div>
+          <div class="aq-tags"><span class="tag tag-o">2篇需人工复核</span><span class="tag tag-g">4篇可快速入库</span><span class="tag tag-b">覆盖4个项目</span></div>
+          <div class="aq-actions">
+            <button class="btn btn-y" onclick="switchTab('content',document.querySelectorAll('.nav-item')[2])" style="font-size:11px;padding:3px 9px">去审核 →</button>
+            <button class="btn btn-success" onclick="batchContOkToday()" style="font-size:11px;padding:3px 9px">✓ 4篇一键入库</button>
+            <span class="aq-time">08:55</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="flywheel fade-in">
+    <div class="fw-title">🔄 AI 知识复利飞轮 <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:4px">每次成功的营销，都在让下一次更好</span></div>
+    <div class="fw-metrics">
+      <div class="fw-m"><div class="fw-m-val">3,241</div><div class="fw-m-lbl">内容库积累</div><div class="fw-m-chg">↑ 今日 +9篇</div></div>
+      <div class="fw-m"><div class="fw-m-val">94.3%</div><div class="fw-m-lbl">AI审稿准确率</div><div class="fw-m-chg">↑ 较月初 +2.1%</div></div>
+      <div class="fw-m"><div class="fw-m-val">4.1x</div><div class="fw-m-lbl">各项目平均ROI</div><div class="fw-m-chg">↑ 较上月 +0.3x</div></div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== INFLUENCER PAGE */
+function infPage() {
+  const proj = PROJECTS.find(p => p.id === curProjId) || PROJECTS[0];
+  const projInf = INF.filter(i => i.proj === curProjId);
+  const rev = projInf.filter(i => i.status === 'review').length;
+  const ok = projInf.filter(i => i.status === 'approved').length;
+  const usedBudget = projInf.filter(i => i.status === 'approved').reduce((s, i) => s + i.fee, 0);
+  const plannedBudget = projInf.reduce((s, i) => s + i.fee, 0);
+  // 达人预算专项（假设达人费占项目总预算的30%）
+  const infBudget = proj.budgetTotal * 10000 * 0.30;
+  const infBudgetUsed = usedBudget;
+  const infBudgetPct = Math.min(infBudgetUsed / infBudget * 100, 100);
+
+  return `
+  <!-- 项目切换器 -->
+  <div class="proj-switcher">
+    <span style="font-size:11px;color:var(--text3);flex-shrink:0;margin-right:4px">项目：</span>
+    ${PROJECTS.map(p => {
+      const pInf = INF.filter(i => i.proj === p.id);
+      const pendCnt = pInf.filter(i => i.status === 'review').length;
+      return `<div class="proj-chip ${p.id === curProjId ? 'active' : ''}" onclick="curProjId='${p.id}';renderPage('influencer')">
+        <div class="proj-dot" style="background:${p.color}"></div>
+        <div>
+          <div style="font-size:11px;font-weight:500">${p.biz} · ${p.name}</div>
+          <div class="proj-biz">预算¥${p.budgetTotal}万 · ROI ${p.roi}x${pendCnt > 0 ? ` · ${pendCnt}待审` : ''}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- 当前项目概况 + 达人预算 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="stat-card sc-${proj.status === 'ok' ? 'g' : proj.status === 'warn' ? 'y' : 'r'}">
+      <div class="stat-lbl">${proj.biz} · ${proj.name} · 项目总预算进度</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+        <span style="font-size:20px;font-weight:800">¥${proj.budgetSpent}万</span>
+        <span style="font-size:12px;color:var(--text2)">/ ¥${proj.budgetTotal}万 已花费</span>
+        <span style="font-size:12px;font-weight:700;color:${proj.roi >= proj.roiTarget ? 'var(--green)' : 'var(--red)'}">ROI ${proj.roi}x</span>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:4px">
+        <div style="height:100%;width:${Math.min(proj.budgetSpent/proj.budgetTotal*100,100)}%;background:${proj.budgetSpent/proj.budgetTotal>0.9?'var(--orange)':'var(--green)'};border-radius:3px;transition:width .6s"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3)">目标ROI ${proj.roiTarget}x · 剩余¥${(proj.budgetTotal-proj.budgetSpent).toFixed(1)}万 · 日预算¥${proj.dailyBudget}万 今日已花¥${proj.dailySpent}万</div>
+    </div>
+    <div class="stat-card sc-b">
+      <div class="stat-lbl">本项目达人费预算（占总预算30%）</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+        <span style="font-size:20px;font-weight:800">¥${(infBudgetUsed/10000).toFixed(1)}万</span>
+        <span style="font-size:12px;color:var(--text2)">/ ¥${(infBudget/10000).toFixed(1)}万 已锁定</span>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:4px">
+        <div style="height:100%;width:${infBudgetPct}%;background:var(--blue);border-radius:3px;transition:width .6s"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3)">已确认 ${ok} 位 / AI推荐 ${projInf.length} 位 · 待审核 ${rev} 位 · 剩余可用¥${((infBudget-infBudgetUsed)/10000).toFixed(1)}万</div>
+    </div>
+  </div>
+
+  <!-- 统计 -->
+  <div class="stats-row">
+    <div class="stat-card sc-y"><div class="stat-lbl">AI推荐达人</div><div class="stat-val">${projInf.length}<span>位</span></div><div class="stat-chg chg-up">↑ 本批次扫描完成</div></div>
+    <div class="stat-card sc-g"><div class="stat-lbl">已确认合作</div><div class="stat-val">${ok}<span>位</span></div><div class="stat-chg chg-up">已锁定¥${(usedBudget/10000).toFixed(1)}万</div></div>
+    <div class="stat-card sc-b"><div class="stat-lbl">待人工审核</div><div class="stat-val">${rev}<span>位</span></div><div class="stat-chg chg-warn">⚠ 需你决策</div></div>
+    <div class="stat-card sc-p"><div class="stat-lbl">预测综合 ROI</div><div class="stat-val">4.3<span>x</span></div><div class="stat-chg ${4.3 >= proj.roiTarget ? 'chg-up' : 'chg-warn'}">目标 ${proj.roiTarget}x ${4.3 >= proj.roiTarget ? '✓达标' : '⚠未达'}</div></div>
+  </div>
+
+  <!-- 达人列表 -->
+  <div class="panel">
+    <div style="background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;padding:8px 12px">
+      <input style="background:var(--bg1);border:1px solid var(--border);border-radius:6px;padding:4px 9px;color:var(--text);font-size:11px;outline:none;width:110px;flex-shrink:0" placeholder="🔍 搜索达人"/>
+      <span class="chip on">全部</span>
+      <span class="chip" onclick="this.classList.toggle('on')">待审核</span>
+      <span class="chip" onclick="this.classList.toggle('on')">已确认</span>
+      <span class="chip" onclick="this.classList.toggle('on')">小红书</span>
+      <div style="flex:1"></div>
+      <span style="font-size:10px;color:var(--text3);flex-shrink:0">共 ${projInf.length} 位达人</span>
+      <button class="btn btn-g" onclick="toast('已触发重新跑选号','info','🔄')" style="font-size:11px;padding:3px 8px">🔄 重跑选号</button>
+      <button class="btn btn-y" onclick="batchOk()" style="font-size:11px;padding:3px 8px">✓ 批量确认</button>
+    </div>
+    <div class="inf-table-wrap">
+      <table class="inf-table">
+        <thead><tr>
+          <th style="width:24px"><input type="checkbox" style="accent-color:var(--yellow-d)"/></th>
+          <th>达人信息</th>
+          <th style="width:52px;text-align:center">AI分</th>
+          <th style="width:100px">粉丝 / 互动率</th>
+          <th>AI核心判断</th>
+          <th style="width:70px;text-align:right">历史ROI</th>
+          <th style="width:70px;text-align:right">报价</th>
+          <th style="width:95px">状态 / 操作</th>
+        </tr></thead>
+        <tbody>${projInf.map(infRow).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function infRow(d) {
+  const sc = d.score >= 85 ? 'var(--green)' : d.score >= 75 ? 'var(--orange)' : 'var(--red)';
+  const fc = d.score >= 85 ? 'sf-hi' : d.score >= 75 ? 'sf-md' : 'sf-lo';
+  const stB = { review: `<span class="sb sb-rev">待审核</span>`, approved: `<span class="sb sb-ok">已确认</span>`, rejected: `<span class="sb sb-no">已拒绝</span>`, ai_run: `<span class="sb sb-ai">AI中</span>` };
+  const roiColor = d.histRoi === '-' ? 'var(--text3)' : parseFloat(d.histRoi) >= (PROJECTS.find(p => p.id === d.proj) || {roiTarget: 3.5}).roiTarget ? 'var(--green)' : 'var(--red)';
+  const acts = d.status === 'review'
+    ? `<div style="display:flex;flex-direction:column;gap:3px">${stB[d.status]}<div style="display:flex;gap:3px;margin-top:2px"><span class="ab ab-ok" onclick="infOk(${d.id})">✓</span><span class="ab ab-no" onclick="infNo(${d.id})">✕</span><span class="ab ab-v" onclick="openInfDr(${d.id})">详情</span></div></div>`
+    : `<div style="display:flex;flex-direction:column;gap:3px">${stB[d.status] || ''}<span class="ab ab-v" onclick="openInfDr(${d.id})" style="margin-top:2px">详情</span></div>`;
+  return `<tr>
+    <td><input type="checkbox" style="accent-color:var(--yellow-d)"/></td>
+    <td><div class="inf-info">
+      <div class="inf-av" style="background:${d.color}20;color:${d.color};border:1px solid ${d.color}30">${d.name[0]}</div>
+      <div>
+        <div class="inf-name">${d.name}</div>
+        <div class="inf-plat">${d.plat} · ${d.cat}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px">合作${d.histCoops}次</div>
+      </div>
+    </div></td>
+    <td style="text-align:center">
+      <div style="font-size:15px;font-weight:800;color:${sc}">${d.score}</div>
+      <div class="score-bar"><div class="score-fill ${fc}" style="width:${d.score}%"></div></div>
+    </td>
+    <td><div style="font-size:11px;line-height:1.9;color:var(--text2)">
+      <b style="color:var(--text)">${d.fans}</b> · 互动 <b style="color:var(--text)">${d.er}</b>
+    </div></td>
+    <td style="max-width:160px;white-space:normal">
+      <div style="font-size:11px;line-height:1.5;color:var(--text2)">${d.dims.map(t => `<span class="tag tag-${t.includes('↓') || t.includes('低') || t.includes('偏') ? 'r' : 'b'}" style="font-size:10px;padding:1px 5px">${t}</span>`).join(' ')}</div>
+    </td>
+    <td style="text-align:right"><span style="font-weight:700;color:${roiColor}">${d.histRoi}</span></td>
+    <td style="text-align:right"><span style="font-weight:600;color:var(--text)">¥${(d.fee/10000).toFixed(1)}万</span></td>
+    <td>${acts}</td>
+  </tr>`;
+}
+
+function infOk(id) {
+  const d = INF.find(i => i.id === id); if (!d) return;
+  d.status = 'approved';
+  toast(`已确认与「${d.name}」合作，锁定¥${(d.fee/10000).toFixed(1)}万`, 'ok', '✅');
+  agentReply(`已确认合作：${d.name}（¥${(d.fee/10000).toFixed(1)}万）。正在生成合作 Brief，同步至供应商系统...`);
+  renderPage('influencer');
+}
+function infNo(id) {
+  const d = INF.find(i => i.id === id); if (!d) return;
+  d.status = 'rejected';
+  toast(`已拒绝「${d.name}」，预算¥${(d.fee/10000).toFixed(1)}万已释放，AI将推荐替代达人`, 'warn', '⚠️');
+  renderPage('influencer');
+}
+function batchOk() {
+  const l = INF.filter(i => i.proj === curProjId && i.status === 'review' && i.score >= 80);
+  l.forEach(i => i.status = 'approved');
+  const totalFee = l.reduce((s, i) => s + i.fee, 0);
+  toast(`已批量确认 ${l.length} 位高分（≥80）达人，锁定¥${(totalFee/10000).toFixed(1)}万`, 'ok', '✅');
+  agentReply(`批量确认完成，锁定达人费¥${(totalFee/10000).toFixed(1)}万。正在为 ${l.length} 位达人生成合作 Brief...`);
+  renderPage('influencer');
+}
+
+function openInfDr(id) {
+  const d = INF.find(i => i.id === id); if (!d) return;
+  const proj = PROJECTS.find(p => p.id === d.proj) || {};
+  const sc = d.score >= 85 ? 'var(--green)' : d.score >= 75 ? 'var(--orange)' : 'var(--red)';
+  const roiColor = d.histRoi === '-' ? 'var(--text3)' : parseFloat(d.histRoi) >= (proj.roiTarget || 3.5) ? 'var(--green)' : 'var(--red)';
+  document.getElementById('drTitle').textContent = d.name + ' · AI分析报告';
+  document.getElementById('drBody').innerHTML = `
+    <div class="dr-sec">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div class="inf-av" style="width:42px;height:42px;font-size:17px;background:${d.color}15;color:${d.color};border:2px solid ${d.color}30">${d.name[0]}</div>
+        <div>
+          <div style="font-size:15px;font-weight:700">${d.name}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${d.plat} · ${d.cat} · 合作${d.histCoops}次</div>
+          <div style="font-size:10px;margin-top:3px"><span style="color:${d.color};font-size:10px;background:${d.color}15;padding:1px 6px;border-radius:3px">${proj.biz} · ${proj.name}</span></div>
+        </div>
+        <div style="margin-left:auto;text-align:center">
+          <div style="font-size:30px;font-weight:800;color:${sc}">${d.score}</div>
+          <div style="font-size:10px;color:var(--text3)">AI匹配分</div>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border-radius:8px;padding:10px;font-size:11px;line-height:1.7;color:var(--text2)">🤖 ${d.brief}</div>
+    </div>
+    <div class="dr-sec">
+      <div class="dr-sec-title">达人数据 & 历史合作表现</div>
+      ${Object.entries(d.metrics).map(([k, v]) => `<div class="m-row"><span class="m-lbl">${k}</span><span class="m-val">${v}</span></div>`).join('')}
+      <div class="m-row"><span class="m-lbl">本次报价</span><span class="m-val" style="color:var(--text)">¥${d.fee.toLocaleString()}</span></div>
+      <div class="m-row"><span class="m-lbl">历史合作ROI vs 项目目标</span><span class="m-val" style="color:${roiColor}">${d.histRoi} vs ${proj.roiTarget || '-'}x</span></div>
+    </div>
+    <div class="dr-sec">
+      <div class="dr-sec-title">AI 匹配维度</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;padding-top:4px">${d.dims.map(t => `<span class="tag tag-g" style="font-size:11px;padding:3px 9px">${t}</span>`).join('')}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      ${d.status === 'review'
+        ? `<button class="btn btn-y" style="flex:1;justify-content:center" onclick="infOk(${d.id});closeDrawer()">✓ 确认合作 (¥${(d.fee/10000).toFixed(1)}万)</button><button class="btn btn-danger" style="flex:1;justify-content:center" onclick="infNo(${d.id});closeDrawer()">✕ 拒绝</button>`
+        : `<div style="color:var(--text2);font-size:12px">当前状态：${d.status === 'approved' ? '已确认合作' : '已拒绝'}</div>`}
+    </div>`;
+  document.getElementById('drawer').classList.add('on');
+  document.getElementById('ov').classList.add('on');
+}
+function closeDrawer() { document.getElementById('drawer').classList.remove('on'); document.getElementById('ov').classList.remove('on'); }
+
+/* ====================================================== CONTENT PAGE */
+function contPage() {
+  // 按项目分组
+  const groups = {};
+  CONT.forEach(c => {
+    const p = PROJECTS.find(pr => pr.id === c.proj);
+    const key = c.proj;
+    if (!groups[key]) groups[key] = { proj: p, items: [] };
+    groups[key].items.push(c);
+  });
+  const totalRev = CONT.filter(c => c.status === 'review').length;
+  const totalOk = CONT.filter(c => c.status === 'approved').length;
+  const totalCost = CONT.filter(c => c.status === 'approved').reduce((s, c) => s + c.cost, 0);
+  const avgRoi = CONT.filter(c => c.roi).reduce((s, c, i, a) => s + c.roi / a.length, 0);
+
+  return `
+  <div class="stats-row">
+    <div class="stat-card sc-y"><div class="stat-lbl">AI生成内容（今日）</div><div class="stat-val">9<span>篇</span></div><div class="stat-chg chg-up">↑ 覆盖 5 个项目</div></div>
+    <div class="stat-card sc-b"><div class="stat-lbl">待人工审核</div><div class="stat-val">${totalRev}<span>篇</span></div><div class="stat-chg chg-warn">⚠ 含合规风险项</div></div>
+    <div class="stat-card sc-g"><div class="stat-lbl">已入库内容</div><div class="stat-val">${totalOk}<span>篇</span></div><div class="stat-chg chg-up">累计成本¥${(totalCost/10000).toFixed(1)}万</div></div>
+    <div class="stat-card sc-p"><div class="stat-lbl">已上线内容平均ROI</div><div class="stat-val">${avgRoi.toFixed(1)}<span>x</span></div><div class="stat-chg chg-up">↑ 含达人投放实测</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-hd">
+      <span style="font-size:15px">✍️</span>
+      <div class="panel-title">内容生产队列 · 按项目分组</div>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn btn-g" onclick="toast('AI写手已启动新任务...','info','🤖')" style="font-size:11px;padding:3px 8px">+ 新建任务</button>
+        <button class="btn btn-y" onclick="batchContOk()" style="font-size:11px;padding:3px 8px">✓ 批量入库</button>
+      </div>
+    </div>
+    <div style="padding:12px">
+      ${Object.values(groups).map(g => contGroup(g)).join('')}
+    </div>
+  </div>`;
+}
+
+function contGroup(g) {
+  const p = g.proj || {};
+  const revCnt = g.items.filter(c => c.status === 'review').length;
+  const okCnt = g.items.filter(c => c.status === 'approved').length;
+  const groupCost = g.items.filter(c => c.status === 'approved').reduce((s, c) => s + c.cost, 0);
+  const groupRoiItems = g.items.filter(c => c.roi);
+  const groupRoi = groupRoiItems.length ? (groupRoiItems.reduce((s, c) => s + c.roi, 0) / groupRoiItems.length).toFixed(1) : '-';
+
+  return `<div class="cont-group">
+    <div class="cont-group-hd">
+      <div class="proj-dot" style="background:${p.color || '#ccc'}"></div>
+      <div class="cont-group-title">${p.biz || '未知'} · ${p.name || '未知项目'}</div>
+      <div class="cont-group-meta">
+        ${revCnt > 0 ? `<span class="tag tag-o" style="font-size:10px">${revCnt}篇待审</span>` : ''}
+        <span style="color:var(--text3)">内容成本 <b style="color:var(--text)">¥${groupCost}</b></span>
+        ${groupRoi !== '-' ? `<span style="color:var(--text3)">上线ROI <b style="color:var(--green)">${groupRoi}x</b></span>` : ''}
+        <span style="color:var(--text3)">目标ROI <b>${p.roiTarget || '-'}x</b></span>
+      </div>
+    </div>
+    <div class="cont-list">
+      ${g.items.map(contRow).join('')}
+    </div>
+  </div>`;
+}
+
+function contRow(c) {
+  const stM = { review: { t: '待审核', cls: 'tag-o' }, approved: { t: '已入库', cls: 'tag-g' }, ai_run: { t: 'AI生成中', cls: 'tag-b' }, rejected: { t: '已拒绝', cls: 'tag-r' } };
+  const st = stM[c.status] || { t: c.status, cls: '' };
+  const run = c.status === 'ai_run';
+  const scColor = (s) => s >= 90 ? 'var(--green)' : s >= 80 ? 'var(--text)' : 'var(--orange)';
+  const smColor = (s) => s >= 90 ? 'var(--green)' : s >= 75 ? 'var(--orange)' : 'var(--red)';
+
+  const scores = run
+    ? `<div style="font-size:10px;color:var(--blue);padding:4px 0;white-space:nowrap">🔄 AI评分中...</div>`
+    : `<div class="cont-scores">
+        <div class="cscore"><div class="cscore-val" style="color:${scColor(c.sc)}">${c.sc}</div><div class="cscore-lbl">创意</div></div>
+        <div class="cscore"><div class="cscore-val" style="color:${smColor(c.sm)}">${c.sm}</div><div class="cscore-lbl">合规</div></div>
+        <div class="cscore"><div class="cscore-val" style="color:${scColor(c.sv)}">${c.sv}</div><div class="cscore-lbl">转化</div></div>
+      </div>`;
+
+  const costInfo = run ? '' : `<div class="cont-cost"><div style="font-size:10px;color:var(--text3)">生产成本</div><b>¥${c.cost}</b>${c.roi ? `<div style="color:var(--green);font-weight:700;font-size:11px">ROI ${c.roi}x</div>` : ''}</div>`;
+
+  const hasRisk = c.sm < 85 || (c.ai && c.ai.includes('风险'));
+  const actions = c.status === 'review'
+    ? `<div class="cont-actions">
+        ${hasRisk ? `<span class="ab ab-v" onclick="openContDr(${c.id})" style="color:var(--orange);border-color:var(--orange)">⚠ 审核</span>` : `<span class="ab ab-ok" onclick="contOk(${c.id})">✓ 入库</span>`}
+        <span class="ab ab-no" onclick="toast('已跳过','warn','⏭️')">跳过</span>
+        <span class="ab ab-v" onclick="openContDr(${c.id})">详情</span>
+       </div>`
+    : c.status === 'approved'
+    ? `<div class="cont-actions"><span class="ab ab-ok" style="cursor:default">✓ 已入库</span><span class="ab ab-v" onclick="openContDr(${c.id})">详情</span></div>`
+    : `<div class="cont-actions"><span class="ab ab-v" onclick="openContDr(${c.id})">查看</span></div>`;
+
+  return `<div class="cont-row">
+    <div class="cont-thumb" style="background:${c.bg}">${c.emoji}</div>
+    <div class="cont-info">
+      <div class="cont-title" title="${c.title}">${c.title}</div>
+      <div class="cont-sub">
+        <span>${c.plat}</span>
+        <span>${c.type}</span>
+        <span class="tag ${st.cls}" style="font-size:10px;padding:1px 5px;margin:0">${st.t}</span>
+        ${!run && c.sm < 85 ? '<span style="color:var(--orange);font-size:10px">⚠ 合规风险</span>' : ''}
+        <span style="color:var(--text3)">${c.days === 0 ? '今日' : c.days + '天前'}</span>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:3px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">🤖 ${c.ai}</div>
+    </div>
+    ${scores}
+    ${costInfo}
+    ${actions}
+  </div>`;
+}
+
+function contOk(id) {
+  const c = CONT.find(i => i.id === id); if (!c) return;
+  c.status = 'approved';
+  toast(`已入库，AI将基于此内容更新知识库`, 'ok', '📚');
+  agentReply(`内容入库：「${c.title.substring(0, 18)}...」知识复利飞轮 +1 转。`);
+  renderPage('content');
+}
+function batchContOk() {
+  const l = CONT.filter(c => c.status === 'review' && c.sm >= 90);
+  l.forEach(c => c.status = 'approved');
+  toast(`已批量入库 ${l.length} 篇合规内容（合规分≥90）`, 'ok', '📚');
+  renderPage('content');
+}
+function batchContOkToday() {
+  const l = CONT.filter(c => c.status === 'review' && c.sm >= 90);
+  l.forEach(c => c.status = 'approved');
+  toast(`已入库 ${l.length} 篇合规内容`, 'ok', '📚');
+}
+
+function openContDr(id) {
+  const c = CONT.find(i => i.id === id); if (!c) return;
+  const p = PROJECTS.find(pr => pr.id === c.proj) || {};
+  document.getElementById('drTitle').textContent = '内容详情 · ' + c.type;
+  document.getElementById('drBody').innerHTML = `
+    <div class="dr-sec">
+      <div style="background:${c.bg};height:80px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:12px">${c.emoji}</div>
+      <div style="font-size:14px;font-weight:700;line-height:1.4;margin-bottom:8px">${c.title}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="tag tag-b">${c.plat}</span>
+        <span class="tag tag-p">${c.type}</span>
+        <span style="font-size:10px;background:${p.color}15;color:${p.color};padding:2px 7px;border-radius:4px;font-weight:600">${p.biz} · ${p.name}</span>
+      </div>
+    </div>
+    <div class="dr-sec">
+      <div class="dr-sec-title">AI 质检评分</div>
+      <div class="m-row"><span class="m-lbl">创意度</span><span class="m-val" style="color:${c.sc >= 90 ? 'var(--green)' : c.sc >= 80 ? 'var(--text)' : 'var(--orange)'}"><b>${c.sc}</b>/100</span></div>
+      <div class="m-row"><span class="m-lbl">合规性</span><span class="m-val" style="color:${c.sm >= 90 ? 'var(--green)' : c.sm >= 75 ? 'var(--orange)' : 'var(--red)'}"><b>${c.sm}</b>/100 ${c.sm < 85 ? '⚠' : ''}</span></div>
+      <div class="m-row"><span class="m-lbl">转化预测</span><span class="m-val"><b>${c.sv}</b>/100</span></div>
+      <div class="m-row"><span class="m-lbl">生产成本</span><span class="m-val">¥${c.cost}</span></div>
+      ${c.roi ? `<div class="m-row"><span class="m-lbl">实际上线ROI</span><span class="m-val" style="color:var(--green)"><b>${c.roi}x</b> vs 目标 ${p.roiTarget || '-'}x</span></div>` : ''}
+    </div>
+    <div class="dr-sec">
+      <div class="dr-sec-title">AI 分析意见</div>
+      <div style="background:var(--bg2);border-radius:8px;padding:10px;font-size:11px;line-height:1.7;color:var(--text2)">🤖 ${c.ai}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      ${c.status === 'review'
+        ? `<button class="btn btn-y" style="flex:1;justify-content:center" onclick="contOk(${c.id});closeDrawer()">✓ 入库</button><button class="btn btn-danger" style="flex:1;justify-content:center" onclick="toast('已跳过','warn','⏭️');closeDrawer()">跳过</button>`
+        : `<div style="color:var(--text2);font-size:12px">当前状态：${c.status === 'approved' ? '已入库' : c.status}</div>`}
+    </div>`;
+  document.getElementById('drawer').classList.add('on');
+  document.getElementById('ov').classList.add('on');
+}
+
+/* ====================================================== DELIVERY PAGE */
+function delPage() {
+  const totalDaily = PROJECTS.reduce((s, p) => s + p.dailyBudget, 0);
+  const totalDailySpent = PROJECTS.reduce((s, p) => s + p.dailySpent, 0);
+  const totalBudget = PROJECTS.reduce((s, p) => s + p.budgetTotal, 0);
+  const totalSpent = PROJECTS.reduce((s, p) => s + p.budgetSpent, 0);
+  const avgRoi = (PROJECTS.reduce((s, p) => s + p.roi, 0) / PROJECTS.length).toFixed(1);
+  const alertCnt = PROJECTS.filter(p => p.status !== 'ok').length;
+
+  return `
+  <!-- 顶部汇总指标 -->
+  <div class="stats-row">
+    <div class="stat-card sc-y">
+      <div class="stat-lbl">今日总花费 / 日预算</div>
+      <div class="stat-val">¥${totalDailySpent.toFixed(1)}<span>万 / ¥${totalDaily.toFixed(0)}万</span></div>
+      <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:5px 0">
+        <div style="height:100%;width:${Math.min(totalDailySpent/totalDaily*100,100).toFixed(0)}%;background:var(--yellow-d);border-radius:2px"></div>
+      </div>
+      <div class="stat-chg chg-up">整体进度 ${(totalDailySpent/totalDaily*100).toFixed(0)}%</div>
+    </div>
+    <div class="stat-card sc-g">
+      <div class="stat-lbl">各项目平均 ROI</div>
+      <div class="stat-val">${avgRoi}<span>x</span></div>
+      <div class="stat-chg chg-up">↑ 闪购618最高 5.1x</div>
+    </div>
+    <div class="stat-card sc-b">
+      <div class="stat-lbl">总预算消耗进度</div>
+      <div class="stat-val">${(totalSpent/totalBudget*100).toFixed(0)}<span>%</span></div>
+      <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:5px 0">
+        <div style="height:100%;width:${Math.min(totalSpent/totalBudget*100,100).toFixed(0)}%;background:var(--blue);border-radius:2px"></div>
+      </div>
+      <div class="stat-chg td">剩余¥${(totalBudget-totalSpent).toFixed(0)}万</div>
+    </div>
+    <div class="stat-card ${alertCnt > 0 ? 'sc-o' : 'sc-g'}">
+      <div class="stat-lbl">需关注项目</div>
+      <div class="stat-val" style="color:${alertCnt > 0 ? 'var(--orange)' : 'var(--green)'}">
+        ${alertCnt}<span>${alertCnt > 0 ? '个异常' : '个（全部正常）'}</span>
+      </div>
+      <div class="stat-chg chg-warn">${alertCnt > 0 ? '⚠ 酒店亲子ROI偏低 · 外卖新客进度慢' : '✓ 全部项目状态正常'}</div>
+    </div>
+  </div>
+
+  <!-- 各项目预算进度 -->
+  <div class="budget-bar-wrap">
+    <div class="budget-header">
+      <div class="budget-title">📊 各项目实时预算 & ROI 状态</div>
+      <div class="budget-summary">        总预算¥${PROJECTS.reduce((s,p)=>s+p.budgetTotal,0)}万 &nbsp;·&nbsp; 今日日预算¥${PROJECTS.reduce((s,p)=>s+p.dailyBudget,0)}万 已花¥${PROJECTS.reduce((s,p)=>s+p.dailySpent,0).toFixed(1)}万
+      </div>
+    </div>
+    <div class="budget-projects">
+      ${PROJECTS.map(p => {
+        const pct = Math.min(p.budgetSpent / p.budgetTotal * 100, 100);
+        const roiColor = p.roi >= p.roiTarget ? 'var(--green)' : p.roi >= p.roiTarget * 0.8 ? 'var(--orange)' : 'var(--red)';
+        const barColor = p.status === 'alert' ? 'var(--red)' : pct > 85 ? 'var(--orange)' : 'var(--green)';
+        const alertCls = p.status === 'alert' ? 'alert-over' : p.status === 'warn' ? 'alert-slow' : 'alert-ok';
+        const alertText = p.status === 'alert' ? '⚠ ROI偏低' : p.status === 'warn' ? '⚡进度慢' : '✓正常';
+        const dailyPct = Math.min(p.dailySpent / p.dailyBudget * 100, 100);
+        return `<div class="bp-row">
+          <div class="bp-name"><span style="color:${p.color};font-weight:600">${p.biz}</span> ${p.name}</div>
+          <div class="bp-bar-bg"><div class="bp-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+          <div class="bp-nums">
+            <span class="bp-spent">¥${p.budgetSpent}万</span>
+            <span class="bp-total">/ ¥${p.budgetTotal}万</span>
+            <span style="font-size:10px;color:var(--text3)">${pct.toFixed(0)}%</span>
+            <span class="bp-roi" style="color:${roiColor}">${p.roi}x</span>
+            <span style="font-size:10px;color:var(--text3)">今日${dailyPct.toFixed(0)}%</span>
+          </div>
+          <span class="bp-alert ${alertCls}">${alertText}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  <!-- 各项目详细卡片 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    ${PROJECTS.map(p => {
+      const pct = Math.min(p.budgetSpent / p.budgetTotal * 100, 100);
+      const barColor = p.status === 'alert' ? 'var(--red)' : pct > 85 ? 'var(--orange)' : p.status === 'warn' ? 'var(--yellow-d)' : 'var(--green)';
+      const roiColor = p.roi >= p.roiTarget ? 'var(--green)' : p.roi >= p.roiTarget * 0.8 ? 'var(--orange)' : 'var(--red)';
+      const alertBadge = p.status === 'alert'
+        ? `<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--red-l);color:var(--red);font-weight:600">⚠ ROI偏低</span>`
+        : p.status === 'warn'
+        ? `<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--orange-l);color:var(--orange);font-weight:600">⚡ 进度偏慢</span>`
+        : `<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--green-l);color:var(--green);font-weight:600">✓ 正常</span>`;
+      const projTasks = TASKS.filter(t => t.proj === p.id);
+      return `<div class="proj-budget-card">
+        <div class="pbc-header">
+          <div>
+            <div class="pbc-name"><span style="color:${p.color};font-size:9px;background:${p.color}18;padding:1px 5px;border-radius:3px;margin-right:5px">${p.biz}</span>${p.name}</div>
+            <div class="pbc-biz">日预算¥${p.dailyBudget}万 · 今日已花¥${p.dailySpent}万 · 日进度${(p.dailySpent/p.dailyBudget*100).toFixed(0)}%</div>
+          </div>
+          ${alertBadge}
+        </div>
+        <div class="pbc-bar-bg">
+          <div class="pbc-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+        </div>
+        <div class="pbc-numbers">
+          <div class="pbc-num"><div class="pbc-num-val">¥${p.budgetSpent}万</div><div class="pbc-num-lbl">已花费</div></div>
+          <div class="pbc-num"><div class="pbc-num-val">¥${(p.budgetTotal - p.budgetSpent).toFixed(1)}万</div><div class="pbc-num-lbl">剩余预算</div></div>
+          <div class="pbc-num"><div class="pbc-num-val" style="color:${roiColor}">${p.roi}x</div><div class="pbc-num-lbl">实际ROI</div></div>
+          <div class="pbc-num"><div class="pbc-num-val" style="color:var(--text3)">${p.roiTarget}x</div><div class="pbc-num-lbl">目标ROI</div></div>
+        </div>
+        ${projTasks.length ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          ${projTasks.slice(0,2).map(t => `<div style="font-size:10px;color:var(--text2);padding:2px 0;display:flex;align-items:center;gap:5px">
+            <span>${t.icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.name.replace(/^[\u26a0\ufe0f\u26a0]+\s*/,'')}</span>
+            ${t.st === 'run' && t.prog != null ? `<span style="color:var(--blue);font-weight:600;flex-shrink:0">${t.prog}%</span>` : ''}
+          </div>`).join('')}
+        </div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- AI任务流 -->
+  <div class="panel">
+    <div class="panel-hd">
+      <span style="font-size:15px">🤖</span>
+      <div class="panel-title">AI 投放任务流</div>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn btn-g" onclick="toast('AI正在重新检查所有账户状态...','info','🔄')" style="font-size:11px;padding:3px 8px">🔄 刷新状态</button>
+        <button class="btn btn-y" onclick="toast('AI已全面接管今日出价优化','ok','⚡')" style="font-size:11px;padding:3px 8px">⚡ 全部交给AI</button>
+      </div>
+    </div>
+    <div class="panel-bd">
+      <div class="task-stream">
+        ${TASKS.map(t => {
+          const proj = PROJECTS.find(p => p.id === t.proj) || {};
+          const progHtml = t.st === 'run' && t.prog != null
+            ? `<div style="margin-top:5px;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;width:${t.prog}%;background:var(--blue);border-radius:2px"></div></div>`
+            : '';
+          return `<div class="ti ${t.st}">
+            <div class="ti-icon">${t.icon}</div>
+            <div class="ti-body">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                <span style="font-size:9px;background:${proj.color}18;color:${proj.color};padding:1px 5px;border-radius:3px;font-weight:600;flex-shrink:0">${proj.biz} · ${proj.name}</span>
+              </div>
+              <div class="ti-name">${t.name}</div>
+              <div class="ti-meta">${t.meta}</div>
+              ${progHtml}
+            </div>
+            ${t.st === 'warn' ? `<button class="btn btn-y" onclick="toast('AI已启动紧急调优','ok','🚨')" style="font-size:11px;padding:3px 8px;flex-shrink:0">处理 →</button>` : ''}
+            ${t.st === 'pend' ? `<button class="btn btn-g" onclick="toast('已提前触发归因报告','info','📊')" style="font-size:11px;padding:3px 8px;flex-shrink:0">立即触发</button>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== AGENT / TOAST */
+function toggleAgent() {
+  const p = document.getElementById('agentPanel');
+  const t = document.getElementById('agToggle');
+  const ov = document.getElementById('agOv');
+  const isOpen = p.classList.contains('open');
+  if (isOpen) { p.classList.remove('open'); t.classList.remove('open'); ov.style.display='none'; }
+  else { p.classList.add('open'); t.classList.add('open'); ov.style.display='block'; }
+}
+
+function agentCmd(q) {
+  appendMsg('me', q);
+  const rMap = {
+    '各项目预算状态': '当前6个项目预算汇总：<br/>· 外卖夏季促销：¥81.6万/¥120万（68%），ROI 4.2x ✓<br/>· 外卖新用户拉新：¥22.8万/¥60万（38%），ROI 2.9x ⚠进度偏慢<br/>· 酒店暑期亲子：¥18.4万/¥80万（23%），ROI 2.1x ⚠偏低<br/>· 酒店商务出行：¥31.2万/¥40万（78%），ROI 3.8x ✓<br/>· 乐生活美容节：¥12.5万/¥50万（25%），ROI 4.5x ✓<br/>· 闪购618大促：¥87.3万/¥90万（97%），ROI 5.1x ✓<br/><br/>建议关注：酒店亲子游策略调整 + 外卖新客加速消耗。',
+    '今日投放数据': '今日各项目实时数据：<br/>· 整体日预算¥29.5万，已花¥21万（71%）<br/>· 外卖夏季：CTR 3.2%，CVR 8.4%，今日ROI 4.6x<br/>· 酒店亲子：CTR 1.9%（偏低），AI已自动优化出价<br/>· 闪购618：日预算98%，冲量中，ROI 5.3x超预期<br/><br/>AI已完成12次出价调优，节省预算约¥2,400。',
+    '待审核内容': '待审内容共 6 篇，含 2 篇合规风险（烤肉脚本+深夜催泪），4 篇无风险可一键入库。',
+    '导出本周报告': '正在生成本周营销报告，内容包括6个项目预算消耗、ROI对比、内容效果、达人表现，预计2分钟内完成并发送邮件。'
+  };
+  const rep = rMap[q] || ('收到指令「' + q + '」，正在处理...');
+  setTimeout(() => agentReply(rep), 600);
+}
+
+function appendMsg(who, txt) {
+  const m = document.getElementById('agMsgs');
+  const div = document.createElement('div');
+  div.className = 'msg-' + who + ' fade-in';
+  const label = who === 'me' ? '你' : '🤖 AI助手';
+  const time = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
+  div.innerHTML = '<div class="msg-who">' + label + ' <span class="msg-t">' + time + '</span></div><div class="mb">' + txt + '</div>';
+  m.appendChild(div);
+  m.scrollTop = m.scrollHeight;
+}
+function agentReply(txt) { appendMsg('ai', txt); }
+
+function sendAgent() {
+  const inp = document.getElementById('agIn');
+  const v = inp.value.trim(); if (!v) return;
+  inp.value = '';
+  appendMsg('me', v);
+  setTimeout(() => agentReply('收到「' + v + '」，AI 正在分析各项目数据，处理中...'), 500);
+  if (!document.getElementById('agentPanel').classList.contains('open')) toggleAgent();
+}
+
+/* ====================================================== ASSET: 内容库（资产价值视图） */
+function assetContentPage() {
+  // ── 资产概览指标
+  const totalAssets = 47;
+  const highValuePct = 34;   // 高价值内容占比（AI评分≥85）
+  const reuseCount = 12;     // 本月被复用次数
+  const avgLifeRoi = 4.2;    // 内容生命周期平均ROI
+  const pendingReview = 6;   // 待质检
+
+  // ── 内容质量分布（AI评分分段）
+  const qualBands = [
+    {label:'优质 ≥85', count:16, pct:34, color:'#0DB876'},
+    {label:'良好 70-84', count:22, pct:47, color:'#F5A623'},
+    {label:'待优化 <70', count:9, pct:19, color:'#E5474A'},
+  ];
+
+  // ── 内容资产按业务线汇总（复利视角）
+  const bizAssets = [
+    {biz:'外卖', color:'#FF6B1A', total:18, highVal:8, reuse:6, bestRoi:'5.8x', trend:'+2', trendUp:true, topContent:'「大学生省钱攻略」搜索霸屏，本月被引用 4 次'},
+    {biz:'酒店', color:'#1677FF', total:11, highVal:3, reuse:2, bestRoi:'3.9x', trend:'-1', trendUp:false, topContent:'「暑期亲子游避坑」收藏量 2.3w，带来持续自然流量'},
+    {biz:'乐生活', color:'#7B3FE4', total:10, highVal:4, reuse:3, bestRoi:'5.3x', trend:'+1', trendUp:true, topContent:'「618美容囤货」种草率最高，已复用至3个关联项目'},
+    {biz:'闪购', color:'#0DB876', total:8, highVal:1, reuse:1, bestRoi:'4.1x', trend:'0', trendUp:true, topContent:'大促冲量素材效果好，但复用性弱，建议提炼通用结构'},
+  ];
+
+  // ── 可复用高价值模板（资产复利核心）
+  const templates = [
+    {title:'省钱攻略型', icon:'💰', biz:'外卖·新客', avgRoi:'4.6x', usedTimes:7, lastUsed:'3天前',
+     desc:'「X个技巧每月省Y元」结构。小红书搜索场景强，CTR高出均值 2.3×，首段展示省钱金额，结尾直跳美团。',
+     tags:['小红书','新客','省钱'], color:'#FF6B1A'},
+    {title:'大促收尾冲量型', icon:'⏰', biz:'闪购·618', avgRoi:'5.8x', usedTimes:4, lastUsed:'1周前',
+     desc:'「最后X小时，不买真亏了」紧迫感结构，有效期≤72h，抖音ROI最高，适合大促收尾48小时密集投放。',
+     tags:['抖音','618','冲量'], color:'#0DB876'},
+    {title:'美容囤货种草型', icon:'✨', biz:'乐生活·美容', avgRoi:'5.3x', usedTimes:5, lastUsed:'5天前',
+     desc:'「囤货清单+券攻略」一体化结构，小红书女性用户互动率 8.2%，已跨业务线复用至外卖女性新客场景。',
+     tags:['小红书','美容','女性'], color:'#7B3FE4'},
+  ];
+
+  // ── 近期内容质量趋势（周维度）
+  const weeklyTrend = [
+    {week:'W20', score:79, highValPct:28}, {week:'W21', score:81, highValPct:31},
+    {week:'W22', score:83, highValPct:33}, {week:'W23', score:85, highValPct:34},
+  ];
+  const maxScore = 90;
+  const trendBars = weeklyTrend.map((w,i)=>{
+    const h = Math.round((w.score/maxScore)*52);
+    const isLast = i === weeklyTrend.length-1;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+      <div style="font-size:10px;font-weight:${isLast?'700':'400'};color:${isLast?'var(--green)':'var(--text3)'}">${w.score}</div>
+      <div style="width:28px;height:${h}px;background:${isLast?'var(--green)':'var(--bg3)'};border-radius:3px 3px 0 0;transition:all .3s"></div>
+      <div style="font-size:10px;color:var(--text3)">${w.week}</div>
+    </div>`;
+  }).join('');
+
+  // ── 业务线资产行
+  const bizRows = bizAssets.map(b => `
+    <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="width:44px;height:44px;border-radius:10px;background:${b.color}15;border:1.5px solid ${b.color}30;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-size:18px;font-weight:800;color:${b.color}">${b.total}</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-size:13px;font-weight:700;color:var(--text)">${b.biz}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${b.color}18;color:${b.color};font-weight:600">${b.highVal}篇高价值</span>
+          <span style="font-size:10px;color:${b.trendUp?'var(--green)':'var(--red)'}">
+            ${b.trendUp?'↑':'↓'} ${b.trend !== '0' ? b.trend.replace('-','') + ' 本月' : '持平'}
+          </span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.topContent}</div>
+      </div>
+      <div style="display:flex;gap:16px;flex-shrink:0;text-align:center">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--green)">${b.bestRoi}</div>
+          <div style="font-size:10px;color:var(--text3)">最高ROI</div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--blue)">${b.reuse}</div>
+          <div style="font-size:10px;color:var(--text3)">本月复用</div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  // ── 质量分布条
+  const qualBars = qualBands.map(q => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="width:76px;font-size:11px;color:var(--text2);flex-shrink:0">${q.label}</div>
+      <div style="flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
+        <div style="width:${q.pct}%;height:100%;background:${q.color};border-radius:4px;transition:width .4s"></div>
+      </div>
+      <div style="width:28px;font-size:11px;font-weight:600;color:${q.color};text-align:right">${q.count}</div>
+    </div>`).join('');
+
+  // ── 可复用模板卡片
+  const templateCards = templates.map(t => `
+    <div style="border:1px solid var(--border);border-radius:var(--radius);padding:13px;background:var(--bg1);display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:18px">${t.icon}</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text)">${t.title}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">${t.biz}</div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:16px;font-weight:900;color:var(--green)">${t.avgRoi}</div>
+          <div style="font-size:10px;color:var(--text3)">均值ROI</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.65;border-left:3px solid ${t.color};padding-left:8px">${t.desc}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:10px;color:var(--text3)">已用 <b style="color:var(--text2)">${t.usedTimes}</b> 次 · 最近 ${t.lastUsed}</div>
+        <div style="display:flex;gap:4px">
+          ${t.tags.map(g=>`<span style="font-size:10px;padding:1px 5px;background:var(--bg3);color:var(--text3);border-radius:3px">${g}</span>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+
+  return `
+  <!-- KPI 概览 -->
+  <div class="stats-row fade-in">
+    <div class="stat-card sc-y">
+      <div class="stat-lbl">内容资产总量</div>
+      <div class="stat-val">${totalAssets}<span> 篇</span></div>
+      <div style="font-size:11px;color:var(--text3)">待质检 ${pendingReview} 篇</div>
+    </div>
+    <div class="stat-card sc-g">
+      <div class="stat-lbl">高价值内容占比</div>
+      <div class="stat-val" style="color:var(--green)">${highValuePct}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div>
+      <div class="stat-chg chg-up">↑ 较上月 +6%，持续提升</div>
+    </div>
+    <div class="stat-card sc-b">
+      <div class="stat-lbl">本月内容复用</div>
+      <div class="stat-val" style="color:var(--blue)">${reuseCount}<span> 次</span></div>
+      <div style="font-size:11px;color:var(--text3)">复用节省成本约 ¥3.8w</div>
+    </div>
+    <div class="stat-card sc-p">
+      <div class="stat-lbl">生命周期均值ROI</div>
+      <div class="stat-val" style="color:var(--purple)">${avgLifeRoi}<span style="font-size:13px;font-weight:400;color:var(--text2)">x</span></div>
+      <div class="stat-chg chg-up">↑ 含二次投放累计贡献</div>
+    </div>
+  </div>
+
+  <!-- 主体双栏 -->
+  <div class="two-col-layout fade-in">
+    <!-- 左：业务线资产汇总 -->
+    <div class="col-main">
+      <div class="panel">
+        <div class="panel-hd" style="justify-content:space-between">
+          <div>
+            <span class="panel-title">📦 业务线内容资产</span>
+            <span style="font-size:11px;color:var(--text3);margin-left:8px">各业务线高价值内容分布及复用情况</span>
+          </div>
+        </div>
+        <div style="padding:0">${bizRows}</div>
+      </div>
+
+      <!-- 可复用高价值模板 -->
+      <div class="panel">
+        <div class="panel-hd" style="justify-content:space-between">
+          <div>
+            <span class="panel-title">♻️ 高价值复用模板</span>
+            <span style="font-size:11px;color:var(--text3);margin-left:8px">AI识别的可跨项目复用结构，带来内容复利</span>
+          </div>
+        </div>
+        <div class="panel-bd" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          ${templateCards}
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：质量分布 + 趋势 + 洞察 -->
+    <div class="col-side">
+      <!-- 内容质量分布 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🎯 质量分布</span></div>
+        <div class="panel-bd">
+          ${qualBars}
+          <div style="font-size:11px;color:var(--text3);padding-top:6px;border-top:1px solid var(--border);margin-top:4px">
+            合计 ${totalAssets} 篇 · 优质率 <b style="color:var(--green)">${highValuePct}%</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- 质量趋势（近4周）-->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📈 质量趋势</span><span style="font-size:10px;color:var(--text3);margin-left:6px">近4周AI均分</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:flex-end;gap:4px;height:64px;padding-bottom:0">
+            ${trendBars}
+          </div>
+          <div style="font-size:11px;color:var(--green);margin-top:8px;font-weight:600">↑ 连续4周正向提升，高价值内容占比 +6%</div>
+        </div>
+      </div>
+
+      <!-- AI洞察 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">💡 资产洞察</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:8px">
+          ${[
+            {icon:'🔥', text:'外卖省钱系列内容搜索霸屏，建议继续生产「新场景」变体扩大覆盖'},
+            {icon:'♻️', text:'乐生活美容种草模板跨业务复用率最高，已节省约 ¥1.5w 制作成本'},
+            {icon:'⚠️', text:'酒店业务高价值内容占比仅 27%，质量低于整体均值，建议重点提升'},
+            {icon:'📊', text:'本月内容复利贡献（二次投放+复用）占总ROI的 18%，较上月提升5%'},
+          ].map(i=>`<div style="display:flex;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+            <span style="font-size:14px;flex-shrink:0">${i.icon}</span>
+            <span style="font-size:11px;color:var(--text2);line-height:1.6">${i.text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== ASSET: 达人库 */
+function assetInfPage() {
+  // ── 达人资产概览
+  const totalInf = 23;
+  const highTierCount = 6;    // S级（ROI≥4x，互动率≥6%）
+  const avgHistRoi = 3.8;
+  const riskCount = 3;        // 风险预警达人
+
+  // ── 达人价值分层（S/A/B/C）
+  const tiers = [
+    {tier:'S级', desc:'ROI≥4x · 互动率≥6%', count:6, pct:26, color:'#F5A623', icons:['💎','⭐','🌟']},
+    {tier:'A级', desc:'ROI 3-4x · 互动率4-6%', count:9, pct:39, color:'#0DB876', icons:['✅']},
+    {tier:'B级', desc:'ROI 2-3x · 互动率2-4%', count:6, pct:26, color:'#1677FF', icons:['📊']},
+    {tier:'C级', desc:'ROI<2x 或 数据异常', count:2, pct:9, color:'#E5474A', icons:['⚠️']},
+  ];
+
+  // ── 核心达人资产明细（行式）
+  const infList = [
+    {name:'美食探索家小林', plat:'小红书', fans:'28.6w', er:'7.2%', histRoi:'5.8x', coopTimes:4, tier:'S', lastRoi:'5.8x', trendUp:true, riskNote:'', color:'#FF6B1A'},
+    {name:'省钱达人阿杰', plat:'小红书', fans:'15.3w', er:'8.1%', histRoi:'4.9x', coopTimes:3, tier:'S', lastRoi:'4.9x', trendUp:true, riskNote:'', color:'#0DB876'},
+    {name:'生活美学vlog', plat:'抖音', fans:'42.1w', er:'5.6%', histRoi:'4.2x', coopTimes:5, tier:'S', lastRoi:'4.2x', trendUp:true, riskNote:'', color:'#7B3FE4'},
+    {name:'都市白领晴晴', plat:'小红书', fans:'9.8w', er:'6.3%', histRoi:'4.1x', coopTimes:2, tier:'S', lastRoi:'4.1x', trendUp:true, riskNote:'', color:'#F5A623'},
+    {name:'暑期亲子游博主', plat:'小红书', fans:'18.2w', er:'4.8%', histRoi:'3.5x', coopTimes:3, tier:'A', lastRoi:'3.5x', trendUp:true, riskNote:'', color:'#1677FF'},
+    {name:'美容护肤研究所', plat:'抖音', fans:'67.5w', er:'3.9%', histRoi:'3.1x', coopTimes:6, tier:'A', lastRoi:'3.1x', trendUp:false, riskNote:'互动率近30天下滑 -1.2%', color:'#E5474A'},
+    {name:'深夜食堂阿满', plat:'抖音', fans:'12.4w', er:'4.1%', histRoi:'—', coopTimes:0, tier:'B', lastRoi:'—', trendUp:true, riskNote:'首次合作，数据待验证', color:'#888'},
+    {name:'美味探店vlog', plat:'抖音', fans:'33.7w', er:'2.1%', histRoi:'2.3x', coopTimes:4, tier:'C', lastRoi:'2.3x', trendUp:false, riskNote:'互动率持续下滑，建议暂停', color:'#E5474A'},
+  ];
+
+  const tierColor = {S:'#F5A623', A:'#0DB876', B:'#1677FF', C:'#E5474A'};
+  const tierBg = {S:'#FFF8E6', A:'#EDFAF3', B:'#EEF6FF', C:'#FFF1F1'};
+
+  const infRows = infList.map(inf => {
+    const tc = tierColor[inf.tier];
+    const roiColor = inf.histRoi==='—' ? 'var(--text3)' : parseFloat(inf.histRoi)>=4?'var(--green)':parseFloat(inf.histRoi)>=3?'var(--yellow-d)':'var(--red)';
+    const erColor = parseFloat(inf.er)>=6?'var(--green)':parseFloat(inf.er)>=4?'var(--yellow-d)':'var(--red)';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <!-- 级别徽章 -->
+      <div style="width:32px;height:32px;border-radius:8px;background:${tc}18;border:1.5px solid ${tc}40;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-size:12px;font-weight:900;color:${tc}">${inf.tier}</span>
+      </div>
+      <!-- 主信息 -->
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${inf.name}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3)">${inf.plat}</span>
+          <span style="font-size:10px;color:var(--text3)">${inf.fans}</span>
+          ${inf.coopTimes>0?`<span style="font-size:10px;color:var(--text3)">合作${inf.coopTimes}次</span>`:'<span style="font-size:10px;color:var(--yellow-d);background:var(--yellow-l);padding:1px 4px;border-radius:2px">首次</span>'}
+        </div>
+        ${inf.riskNote ? `<div style="font-size:10px;color:var(--red);background:#FFF1F1;padding:2px 6px;border-radius:3px;display:inline-block">⚠️ ${inf.riskNote}</div>` : '<div style="font-size:10px;color:var(--text3)">状态正常</div>'}
+      </div>
+      <!-- 核心指标 -->
+      <div style="display:flex;gap:16px;flex-shrink:0;text-align:center">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:${erColor}">${inf.er}</div>
+          <div style="font-size:10px;color:var(--text3)">互动率</div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:${roiColor}">${inf.histRoi}</div>
+          <div style="font-size:10px;color:var(--text3)">历史ROI</div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:${roiColor}">${inf.trendUp ? '↑' : '↓'}</div>
+          <div style="font-size:10px;color:var(--text3)">趋势</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── 价值分层条
+  const tierBars = tiers.map(t => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;font-weight:700;color:${t.color};background:${t.color}15;padding:1px 7px;border-radius:3px">${t.tier}</span>
+          <span style="font-size:10px;color:var(--text3)">${t.desc}</span>
+        </div>
+        <span style="font-size:11px;font-weight:600;color:var(--text2)">${t.count}位</span>
+      </div>
+      <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div style="width:${t.pct}%;height:100%;background:${t.color};border-radius:3px"></div>
+      </div>
+    </div>`).join('');
+
+  // ── 平台 ROI 对比
+  const platRoi = [
+    {plat:'小红书', avgRoi:4.4, count:12, color:'#E13033'},
+    {plat:'抖音', avgRoi:3.5, count:9, color:'#000'},
+    {plat:'微博', avgRoi:2.8, count:2, color:'#1D8EDB'},
+  ];
+  const platRoiHtml = platRoi.map(p => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="width:48px;font-size:11px;color:var(--text2);flex-shrink:0">${p.plat}</div>
+      <div style="flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
+        <div style="width:${(p.avgRoi/6)*100}%;height:100%;background:${p.color};border-radius:4px"></div>
+      </div>
+      <div style="width:30px;font-size:11px;font-weight:700;color:var(--green);text-align:right">${p.avgRoi}x</div>
+    </div>`).join('');
+
+  return `
+  <!-- KPI 概览 -->
+  <div class="stats-row fade-in">
+    <div class="stat-card sc-y">
+      <div class="stat-lbl">达人资产总量</div>
+      <div class="stat-val">${totalInf}<span> 位</span></div>
+      <div style="font-size:11px;color:var(--text3)">本月新增 2 位</div>
+    </div>
+    <div class="stat-card sc-g">
+      <div class="stat-lbl">S级高价值达人</div>
+      <div class="stat-val" style="color:var(--green)">${highTierCount}<span> 位</span></div>
+      <div class="stat-chg chg-up">↑ 占比26%，是ROI主力</div>
+    </div>
+    <div class="stat-card sc-b">
+      <div class="stat-lbl">历史均值ROI</div>
+      <div class="stat-val" style="color:var(--blue)">${avgHistRoi}<span style="font-size:13px;font-weight:400;color:var(--text2)">x</span></div>
+      <div class="stat-chg chg-up">↑ 较上季度 +0.4x</div>
+    </div>
+    <div class="stat-card sc-o">
+      <div class="stat-lbl">风险预警</div>
+      <div class="stat-val" style="color:var(--orange)">${riskCount}<span> 位</span></div>
+      <div style="font-size:11px;color:var(--text3)">互动率下滑或异常</div>
+    </div>
+  </div>
+
+  <!-- 主体双栏 -->
+  <div class="two-col-layout fade-in">
+    <!-- 左：达人资产明细 -->
+    <div class="col-main">
+      <div class="panel">
+        <div class="panel-hd">
+          <span class="panel-title">👥 达人资产明细</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px">按价值分层排列，S级优先</span>
+        </div>
+        <div style="padding:0">${infRows}</div>
+      </div>
+    </div>
+
+    <!-- 右：分层 + 平台ROI + 洞察 -->
+    <div class="col-side">
+      <!-- 价值分层 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🏅 价值分层</span></div>
+        <div class="panel-bd">${tierBars}</div>
+      </div>
+
+      <!-- 平台ROI对比 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📊 平台均值ROI</span></div>
+        <div class="panel-bd">${platRoiHtml}
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">小红书达人ROI稳定高出抖音约 26%</div>
+        </div>
+      </div>
+
+      <!-- 达人资产洞察 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">💡 达人洞察</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:8px">
+          ${[
+            {icon:'⭐', text:'S级6位达人贡献了本月 68% 的ROI，是核心资产，建议优先锁定长期合作'},
+            {icon:'⚠️', text:'美容护肤研究所互动率连续下滑，建议本月降低投入，观察是否回升'},
+            {icon:'🆕', text:'深夜食堂阿满（首次合作）互动率4.1%，建议小预算测试，验证后再升级'},
+            {icon:'📈', text:'小红书达人ROI整体优于抖音，外卖/酒店类项目建议优先选小红书达人'},
+          ].map(i=>`<div style="display:flex;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+            <span style="font-size:14px;flex-shrink:0">${i.icon}</span>
+            <span style="font-size:11px;color:var(--text2);line-height:1.6">${i.text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== ASSET: 数据归因 */
+function assetAttrPage() {
+  // ── 归因全局健康度
+  const overallRoi = 4.1;
+  const roiVsTarget = '+0.3x';
+  const topChannel = '达人内容';
+  const topChannelPct = 42;
+  const anomalyCount = 2;   // 归因异常项目数
+
+  // ── 渠道归因总览（全项目汇总）
+  const channels = [
+    {name:'达人内容', pct:42, roi:'4.8x', color:'#F5A623', trend:'+3%', trendUp:true},
+    {name:'付费投放', pct:28, roi:'3.2x', color:'#1677FF', trend:'-1%', trendUp:false},
+    {name:'自然流量', pct:18, roi:'6.1x', color:'#0DB876', trend:'+5%', trendUp:true},
+    {name:'其他渠道', pct:12, roi:'2.1x', color:'#AAA', trend:'0%', trendUp:true},
+  ];
+
+  // ── 各项目归因明细
+  const projects = [
+    {name:'外卖夏季促销', biz:'外卖', roi:4.3, target:3.8, status:'ok',
+     ch:[{n:'达人内容',p:45,c:'#F5A623'},{n:'付费投放',p:30,c:'#1677FF'},{n:'自然流量',p:16,c:'#0DB876'},{n:'其他',p:9,c:'#AAA'}],
+     insight:'ROI超目标13%，达人内容贡献最大，建议继续加大'},
+    {name:'外卖新客拉新', biz:'外卖', roi:3.9, target:3.5, status:'ok',
+     ch:[{n:'达人内容',p:52,c:'#F5A623'},{n:'付费投放',p:25,c:'#1677FF'},{n:'自然流量',p:14,c:'#0DB876'},{n:'其他',p:9,c:'#AAA'}],
+     insight:'新客转化率高，小红书搜索场景贡献了52%的转化'},
+    {name:'酒店暑期亲子游', biz:'酒店', roi:2.1, target:3.0, status:'warn',
+     ch:[{n:'达人内容',p:38,c:'#F5A623'},{n:'付费投放',p:33,c:'#1677FF'},{n:'自然流量',p:12,c:'#0DB876'},{n:'其他',p:17,c:'#AAA'}],
+     insight:'⚠️ ROI低于目标0.9x：内容点击率正常，落地页转化仅1.2%（均值3.5%），落地页是核心卡点'},
+    {name:'乐生活美容节', biz:'乐生活', roi:5.3, target:4.0, status:'ok',
+     ch:[{n:'达人内容',p:55,c:'#F5A623'},{n:'付费投放',p:20,c:'#1677FF'},{n:'自然流量',p:18,c:'#0DB876'},{n:'其他',p:7,c:'#AAA'}],
+     insight:'ROI超目标33%，达人内容贡献55%，是本月最优项目'},
+    {name:'闪购618冲量', biz:'闪购', roi:5.1, target:4.5, status:'ok',
+     ch:[{n:'达人内容',p:35,c:'#F5A623'},{n:'付费投放',p:40,c:'#1677FF'},{n:'自然流量',p:10,c:'#0DB876'},{n:'其他',p:15,c:'#AAA'}],
+     insight:'大促期付费投放效率最高（40%贡献），大促外达人内容更优'},
+    {name:'酒店暑期周末套餐', biz:'酒店', roi:1.8, target:2.8, status:'bad',
+     ch:[{n:'达人内容',p:28,c:'#F5A623'},{n:'付费投放',p:42,c:'#1677FF'},{n:'自然流量',p:8,c:'#0DB876'},{n:'其他',p:22,c:'#AAA'}],
+     insight:'🚨 ROI严重低于目标：付费投放占比过高但效率低，建议暂停付费增加内容投入'},
+  ];
+
+  const statusIcon = {ok:'<span style="color:var(--green);font-size:11px;font-weight:600">✅ 达标</span>', warn:'<span style="color:var(--yellow-d);font-size:11px;font-weight:600">⚠️ 偏低</span>', bad:'<span style="color:var(--red);font-size:11px;font-weight:600">🚨 未达标</span>'};
+  const roiColor = (roi, target) => roi>=target?'var(--green)':roi>=target*0.8?'var(--yellow-d)':'var(--red)';
+
+  // ── 项目归因行
+  const projRows = projects.map(p => {
+    const barHtml = p.ch.map(c=>`<div style="flex:${c.p};height:100%;background:${c.c}" title="${c.n} ${c.p}%"></div>`).join('');
+    const rc = roiColor(p.roi, p.target);
+    return `<div style="border-bottom:1px solid var(--border);padding:12px 14px;transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="display:flex;align-items:center;gap:12px">
+        <!-- 项目名+状态 -->
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="font-size:12px;font-weight:700;color:var(--text)">${p.name}</span>
+            <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3)">${p.biz}</span>
+            ${statusIcon[p.status]}
+          </div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.5">${p.insight}</div>
+        </div>
+        <!-- ROI vs 目标 -->
+        <div style="display:flex;gap:16px;flex-shrink:0;text-align:center">
+          <div>
+            <div style="font-size:15px;font-weight:900;color:${rc}">${p.roi}x</div>
+            <div style="font-size:10px;color:var(--text3)">实际ROI</div>
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:900;color:var(--text2)">${p.target}x</div>
+            <div style="font-size:10px;color:var(--text3)">目标</div>
+          </div>
+        </div>
+      </div>
+      <!-- 渠道归因条 -->
+      <div style="margin-top:8px">
+        <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:1px">${barHtml}</div>
+        <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+          ${p.ch.map(c=>`<span style="font-size:10px;color:var(--text3)"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${c.c};margin-right:2px;vertical-align:middle"></span>${c.n} ${c.p}%</span>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── 渠道汇总行
+  const channelRows = channels.map(c => `
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
+      <div style="flex:1;font-size:12px;font-weight:600;color:var(--text)">${c.name}</div>
+      <div style="width:60px">
+        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+          <div style="width:${c.pct}%;height:100%;background:${c.color};border-radius:3px"></div>
+        </div>
+      </div>
+      <div style="width:32px;font-size:11px;font-weight:600;color:var(--text2);text-align:right">${c.pct}%</div>
+      <div style="width:34px;font-size:11px;font-weight:700;color:var(--green);text-align:right">${c.roi}</div>
+      <div style="width:28px;font-size:10px;color:${c.trendUp?'var(--green)':'var(--red)'};text-align:right">${c.trend}</div>
+    </div>`).join('');
+
+  return `
+  <!-- KPI 概览 -->
+  <div class="stats-row fade-in">
+    <div class="stat-card sc-y">
+      <div class="stat-lbl">整体归因ROI</div>
+      <div class="stat-val" style="color:var(--green)">${overallRoi}<span style="font-size:13px;font-weight:400;color:var(--text2)">x</span></div>
+      <div class="stat-chg chg-up">↑ 超综合目标 ${roiVsTarget}</div>
+    </div>
+    <div class="stat-card sc-g">
+      <div class="stat-lbl">ROI达标项目</div>
+      <div class="stat-val">4<span>/6</span></div>
+      <div style="font-size:11px;color:var(--text3)">${anomalyCount} 个项目需干预</div>
+    </div>
+    <div class="stat-card sc-b">
+      <div class="stat-lbl">${topChannel}贡献</div>
+      <div class="stat-val" style="color:var(--blue)">${topChannelPct}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div>
+      <div class="stat-chg chg-up">↑ 最大归因渠道 +3%</div>
+    </div>
+    <div class="stat-card sc-g">
+      <div class="stat-lbl">自然流量ROI</div>
+      <div class="stat-val" style="color:var(--green)">6.1<span style="font-size:13px;font-weight:400;color:var(--text2)">x</span></div>
+      <div style="font-size:11px;color:var(--text3)">最高效渠道，占比18%</div>
+    </div>
+  </div>
+
+  <!-- 主体双栏 -->
+  <div class="two-col-layout fade-in">
+    <!-- 左：项目归因明细 -->
+    <div class="col-main">
+      <div class="panel">
+        <div class="panel-hd">
+          <span class="panel-title">📊 各项目归因明细</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px">实际ROI vs 目标 · 渠道贡献拆解</span>
+        </div>
+        <div style="padding:0">${projRows}</div>
+      </div>
+    </div>
+
+    <!-- 右：渠道汇总 + 洞察 -->
+    <div class="col-side">
+      <!-- 渠道汇总 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🔀 渠道归因汇总</span><span style="font-size:10px;color:var(--text3);margin-left:6px">全项目</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:4px">
+            <div style="width:8px;font-size:10px;color:var(--text3)"></div>
+            <div style="flex:1;font-size:10px;color:var(--text3)">渠道</div>
+            <div style="width:60px;font-size:10px;color:var(--text3)">占比</div>
+            <div style="width:32px;font-size:10px;color:var(--text3);text-align:right">%</div>
+            <div style="width:34px;font-size:10px;color:var(--text3);text-align:right">ROI</div>
+            <div style="width:28px;font-size:10px;color:var(--text3);text-align:right">趋势</div>
+          </div>
+          ${channelRows}
+        </div>
+      </div>
+
+      <!-- 归因洞察 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">💡 归因洞察</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:8px">
+          ${[
+            {icon:'🎯', text:'达人内容是最大归因来源（42%），且ROI 4.8x优于付费投放，建议提升内容预算比例'},
+            {icon:'🌱', text:'自然流量ROI最高（6.1x），是内容长效价值的体现，需继续积累高质量内容'},
+            {icon:'🚨', text:'酒店周末套餐付投占比42%但ROI仅1.8x，付投严重低效，建议暂停并转向内容'},
+            {icon:'⚠️', text:'酒店亲子游落地页转化率1.2%（均值3.5%），落地页优化是ROI提升关键节点'},
+          ].map(i=>`<div style="display:flex;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+            <span style="font-size:14px;flex-shrink:0">${i.icon}</span>
+            <span style="font-size:11px;color:var(--text2);line-height:1.6">${i.text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== ASSET: 营销知识库 */
+function assetKbPage() {
+  // ── 知识资产概览
+  const totalDocs = 31;
+  const avgCiteRate = 3.2;   // 每篇平均被引用次数/月
+  const avgUseful = 87;      // 平均有用率%
+  const highValueDocs = 8;   // 有效指导决策的高价值文档
+
+  // ── 知识资产分类健康度
+  const categories = [
+    {cat:'最佳实践', icon:'🏆', color:'#F5A623', count:8, cited:4.8, useful:92, desc:'已验证高ROI打法，被引用率最高'},
+    {cat:'AI洞察', icon:'💡', color:'#1677FF', count:7, cited:3.9, useful:90, desc:'数据驱动发现，指导选号/归因决策'},
+    {cat:'方法论', icon:'📚', color:'#7B3FE4', count:6, cited:2.7, useful:88, desc:'全链路方法，适合新人上手和跨项目复用'},
+    {cat:'合规规范', icon:'📋', color:'#FF6B1A', count:5, cited:5.1, useful:95, desc:'高被引用，每次创作前必查'},
+    {cat:'项目复盘', icon:'🔍', color:'#0DB876', count:5, cited:1.8, useful:79, desc:'项目结案经验，价值有待挖掘和沉淀'},
+  ];
+
+  // ── 高价值知识文档（行式展示）
+  const topDocs = [
+    {cat:'最佳实践', icon:'🏆', color:'#F5A623', title:'外卖新客拉新：小红书省钱攻略型内容方法论',
+     cited:12, useful:92, lastUsed:'昨天', impact:'指导了本月 4 个项目选题，贡献ROI提升约 18%',
+     tags:['外卖','小红书','新客']},
+    {cat:'合规规范', icon:'📋', color:'#FF6B1A', title:'内容合规红线：禁用词与风险表述清单（2024版）',
+     cited:19, useful:95, lastUsed:'今天', impact:'AI审稿全自动引用，本月拦截高风险内容 23 次',
+     tags:['合规','审稿','全渠道']},
+    {cat:'AI洞察', icon:'💡', color:'#1677FF', title:'达人互动率与ROI相关性分析：基于23位达人数据',
+     cited:9, useful:90, lastUsed:'3天前', impact:'选号标准已固化，S级达人识别准确率提升至 85%',
+     tags:['达人选号','ROI','数据']},
+    {cat:'方法论', icon:'📚', color:'#7B3FE4', title:'内容营销全链路ROI提升方法论（从选号到归因）',
+     cited:7, useful:88, lastUsed:'1周前', impact:'新成员培训必读，帮助新人快速理解整体业务逻辑',
+     tags:['方法论','全链路','培训']},
+    {cat:'最佳实践', icon:'🏆', color:'#F5A623', title:'618大促收尾期：抖音紧迫感内容48小时投放策略',
+     cited:6, useful:87, lastUsed:'5天前', impact:'闪购618项目直接采用，ROI达5.1x（目标4.5x）',
+     tags:['大促','抖音','闪购']},
+    {cat:'AI洞察', icon:'💡', color:'#1677FF', title:'小红书vs抖音：4大业务线平台ROI差异分析',
+     cited:8, useful:91, lastUsed:'2天前', impact:'指导外卖/酒店项目优先选小红书，ROI整体提升 23%',
+     tags:['平台策略','小红书','抖音']},
+    {cat:'项目复盘', icon:'🔍', color:'#0DB876', title:'酒店亲子游项目复盘：落地页是ROI最大卡点',
+     cited:3, useful:79, lastUsed:'2周前', impact:'已触发落地页优化需求，等待产品排期中',
+     tags:['酒店','落地页','复盘']},
+    {cat:'合规规范', icon:'📋', color:'#FF6B1A', title:'达人合作合同要点：首次合作分期付款规范',
+     cited:5, useful:83, lastUsed:'4天前', impact:'本月首次合作3位达人均按此规范执行，0风险',
+     tags:['合规','达人','合同']},
+  ];
+
+  // ── 类别健康度行
+  const catRows = categories.map(c => `
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="width:32px;height:32px;border-radius:8px;background:${c.color}15;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${c.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${c.cat}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${c.color}15;color:${c.color}">${c.count}篇</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${c.desc}</div>
+      </div>
+      <div style="display:flex;gap:14px;flex-shrink:0;text-align:center">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--blue)">${c.cited}x</div>
+          <div style="font-size:10px;color:var(--text3)">月均引用</div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--green)">${c.useful}%</div>
+          <div style="font-size:10px;color:var(--text3)">有用率</div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  // ── 高价值文档行
+  const docRows = topDocs.map(d => `
+    <div style="border-bottom:1px solid var(--border);padding:10px 14px;transition:background .12s;cursor:pointer" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="width:28px;height:28px;border-radius:6px;background:${d.color}15;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:1px">${d.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:3px">${d.title}</div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:5px">${d.impact}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${d.tags.map(t=>`<span style="font-size:10px;padding:1px 5px;background:var(--bg3);color:var(--text3);border-radius:3px">${t}</span>`).join('')}
+            <span style="font-size:10px;color:var(--text3);margin-left:auto">最近引用 ${d.lastUsed}</span>
+          </div>
+        </div>
+        <div style="text-align:center;flex-shrink:0">
+          <div style="font-size:14px;font-weight:900;color:var(--blue)">${d.cited}</div>
+          <div style="font-size:10px;color:var(--text3)">次/月</div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  // ── 引用趋势（近4周）
+  const weekCites = [{w:'W20',n:28},{w:'W21',n:34},{w:'W22',n:31},{w:'W23',n:39}];
+  const maxCite = 45;
+  const citeBars = weekCites.map((w,i) => {
+    const h = Math.round((w.n/maxCite)*56);
+    const isLast = i === weekCites.length-1;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+      <div style="font-size:10px;font-weight:${isLast?700:400};color:${isLast?'var(--blue)':'var(--text3)'}">${w.n}</div>
+      <div style="width:28px;height:${h}px;background:${isLast?'var(--blue)':'var(--bg3)'};border-radius:3px 3px 0 0"></div>
+      <div style="font-size:10px;color:var(--text3)">${w.w}</div>
+    </div>`;
+  }).join('');
+
+  return `
+  <!-- KPI 概览 -->
+  <div class="stats-row fade-in">
+    <div class="stat-card sc-y">
+      <div class="stat-lbl">知识文档总量</div>
+      <div class="stat-val">${totalDocs}<span> 篇</span></div>
+      <div style="font-size:11px;color:var(--text3)">本月沉淀 3 篇新文档</div>
+    </div>
+    <div class="stat-card sc-b">
+      <div class="stat-lbl">月均引用率</div>
+      <div class="stat-val" style="color:var(--blue)">${avgCiteRate}<span style="font-size:13px;font-weight:400;color:var(--text2)">次/篇</span></div>
+      <div class="stat-chg chg-up">↑ 知识正在被持续使用</div>
+    </div>
+    <div class="stat-card sc-g">
+      <div class="stat-lbl">平均有用率</div>
+      <div class="stat-val" style="color:var(--green)">${avgUseful}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div>
+      <div class="stat-chg chg-up">↑ 较上月 +2%</div>
+    </div>
+    <div class="stat-card sc-p">
+      <div class="stat-lbl">高价值文档</div>
+      <div class="stat-val" style="color:var(--purple)">${highValueDocs}<span> 篇</span></div>
+      <div style="font-size:11px;color:var(--text3)">有效指导决策</div>
+    </div>
+  </div>
+
+  <!-- 主体双栏 -->
+  <div class="two-col-layout fade-in">
+    <!-- 左：高引用文档列表 -->
+    <div class="col-main">
+      <div class="panel">
+        <div class="panel-hd">
+          <span class="panel-title">📄 高价值知识文档</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px">按月均引用次数排序 · 展示对决策的实际影响</span>
+        </div>
+        <div style="padding:0">${docRows}</div>
+      </div>
+    </div>
+
+    <!-- 右：类别健康度 + 引用趋势 + 洞察 -->
+    <div class="col-side">
+      <!-- 分类健康度 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📂 分类健康度</span></div>
+        <div style="padding:0">${catRows}</div>
+      </div>
+
+      <!-- 引用趋势 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📈 引用趋势</span><span style="font-size:10px;color:var(--text3);margin-left:6px">近4周总引用次数</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:flex-end;gap:4px;height:64px">${citeBars}</div>
+          <div style="font-size:11px;color:var(--blue);font-weight:600;margin-top:8px">↑ 本周引用39次，创近月新高</div>
+        </div>
+      </div>
+
+      <!-- 知识洞察 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">💡 知识洞察</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:8px">
+          ${[
+            {icon:'📌', text:'合规规范文档被引用最频繁（月均5.1次），建议固化为每次AI审稿的必选项'},
+            {icon:'🔥', text:'项目复盘类文档有用率最低（79%），建议增加「可执行结论」章节提高价值'},
+            {icon:'📝', text:'本月无新AI洞察文档产出，建议从达人ROI分析中提炼1篇新洞察'},
+            {icon:'♻️', text:'「全链路方法论」被7个项目引用，是跨项目知识复用率最高的文档'},
+          ].map(i=>`<div style="display:flex;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+            <span style="font-size:14px;flex-shrink:0">${i.icon}</span>
+            <span style="font-size:11px;color:var(--text2);line-height:1.6">${i.text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== AI: 写手 */
+function aiWriterPage() {
+  // ── 核心效果指标
+  const monthTotal = 186, avgScore = 88.4, firstPassRate = 91, costSavePct = 73;
+
+  // ── 质量趋势
+  const weeklyQuality = [
+    {w:'W20',score:85.1},{w:'W21',score:86.8},{w:'W22',score:87.9},{w:'W23',score:88.4}
+  ];
+  const maxQS = 95;
+  const qualBars = weeklyQuality.map((w,i)=>{
+    const h=Math.round((w.score/maxQS)*48), isL=i===3;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">
+      <div style="font-size:10px;font-weight:${isL?700:400};color:${isL?'var(--green)':'var(--text3)'}">${w.score}</div>
+      <div style="width:24px;height:${h}px;background:${isL?'var(--green)':'var(--bg3)'};border-radius:3px 3px 0 0"></div>
+      <div style="font-size:10px;color:var(--text3)">${w.w}</div>
+    </div>`;
+  }).join('');
+
+  // ── 业务线质量明细
+  const bizQ = [
+    {biz:'外卖',color:'#FF6B1A',cnt:72,score:90.1,passRate:94,avgTime:'1.6min',insight:'评分最高，外卖类内容与AI最契合'},
+    {biz:'乐生活',color:'#7B3FE4',cnt:48,score:89.3,passRate:92,avgTime:'1.9min',insight:'种草内容质量高，模板命中率强'},
+    {biz:'闪购',color:'#0DB876',cnt:35,score:86.4,passRate:89,avgTime:'1.7min',insight:'建议大促前提前批量预生成'},
+    {biz:'酒店',color:'#1677FF',cnt:31,score:82.1,passRate:87,avgTime:'2.3min',insight:'质量低于均值，建议补充酒店训练样本'},
+  ];
+  const bizRows = bizQ.map(b=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="width:38px;height:38px;border-radius:8px;background:${b.color}15;border:1.5px solid ${b.color}30;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-size:13px;font-weight:800;color:${b.color}">${b.cnt}</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${b.biz}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${b.color}15;color:${b.color}">均分 ${b.score}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3)">通过率 ${b.passRate}%</span>
+          <span style="font-size:10px;color:var(--text3)">${b.avgTime}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${b.insight}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 低质原因
+  const failR = [
+    {reason:'合规风险词触发',cnt:8,pct:42,color:'#E5474A'},
+    {reason:'转化引导缺失',cnt:6,pct:32,color:'#F5A623'},
+    {reason:'质量低于阈值',cnt:3,pct:16,color:'#1677FF'},
+    {reason:'主题偏离',cnt:2,pct:10,color:'#AAA'},
+  ];
+  const failBars = failR.map(f=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+      <div style="width:80px;font-size:11px;color:var(--text2);flex-shrink:0">${f.reason}</div>
+      <div style="flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div style="width:${f.pct}%;height:100%;background:${f.color};border-radius:3px"></div>
+      </div>
+      <div style="width:18px;font-size:11px;font-weight:600;color:${f.color};text-align:right">${f.cnt}</div>
+    </div>`).join('');
+
+  // ── 知识库
+  const knowledgeBases = [
+    {name:'内容合规规则库', version:'v2024.05', refs:186, desc:'禁用词、平台限流词、合规红线，每次生成前强制加载'},
+    {name:'高ROI内容模板库', version:'v1.3', refs:127, desc:'3种高价值模板结构，省钱/冲量/种草，均值ROI 4.8x+'},
+    {name:'历史高分内容库', version:'实时', refs:91, desc:'AI评分≥85的已入库内容，作为写作风格参考样本'},
+    {name:'业务产品知识库', version:'v2024.Q2', refs:68, desc:'各业务线产品特性、核心卖点、差异化话术'},
+  ];
+  const kbRows = knowledgeBases.map(k=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="width:32px;height:32px;border-radius:6px;background:var(--yellow-l);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">📚</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:600;color:var(--text)">${k.name}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3)">${k.version}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${k.desc}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:12px;font-weight:700;color:var(--blue)">${k.refs}</div>
+        <div style="font-size:10px;color:var(--text3)">本月引用</div>
+      </div>
+    </div>`).join('');
+
+  // ── Skills
+  const skills = [
+    {icon:'✍️', name:'图文写作', desc:'小红书/微博图文，「攻略/省钱/测评」结构', status:'active'},
+    {icon:'🎬', name:'视频脚本', desc:'抖音/快手短视频脚本，含口播词+镜头描述', status:'active'},
+    {icon:'🔄', name:'模板复用改写', desc:'基于高ROI模板做变体，保留核心结构', status:'active'},
+    {icon:'🌐', name:'多平台适配', desc:'同一主题自动生成小红书/抖音双版本', status:'active'},
+    {icon:'🔬', name:'A/B版本对比', desc:'同一选题生成2个风格版本供人工选择', status:'beta'},
+  ];
+  const skillCards = skills.map(s=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <span style="font-size:16px;flex-shrink:0">${s.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:1px">
+          <span style="font-size:11px;font-weight:600;color:var(--text)">${s.name}</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:2px;background:${s.status==='active'?'var(--green)':'var(--yellow-l)'};color:${s.status==='active'?'#fff':'var(--yellow-d)'};font-weight:600;border:${s.status==='active'?'none':'1px solid var(--border-y)'}">${s.status==='active'?'已启用':'Beta'}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3)">${s.desc}</div>
+      </div>
+    </div>`).join('');
+
+  // ── Tools
+  const tools = [
+    {icon:'🔍', name:'内容库查询 API', desc:'写作前检索相似历史内容，避免重复'},
+    {icon:'🛡️', name:'合规检测引擎', desc:'实时扫描禁用词，生成结束前强制执行'},
+    {icon:'📊', name:'ROI预测模型', desc:'基于历史数据预测内容预期ROI'},
+    {icon:'🏷️', name:'自动标签提取', desc:'生成完成后自动打分类/话题标签'},
+  ];
+  const toolCards = tools.map(t=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <span style="font-size:14px;flex-shrink:0">${t.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:1px">${t.name}</div>
+        <div style="font-size:10px;color:var(--text3)">${t.desc}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 硬性规则
+  const hardRules = [
+    {level:'🔴', text:'生成内容含禁用词必须重新生成，不允许人工覆盖'},
+    {level:'🔴', text:'AI评分低于 70 分自动丢弃，不进入审稿队列'},
+    {level:'🟡', text:'评分 70-84 分标记「待人工复核」，不自动入库'},
+    {level:'🟡', text:'生成时长超过 5 分钟自动中断并告警'},
+    {level:'🟢', text:'评分 ≥ 85 分且合规通过，可配置自动入库'},
+    {level:'🟢', text:'每次生成强制挂载业务线对应知识库版本'},
+  ];
+
+  return `
+  <div class="stats-row fade-in">
+    <div class="stat-card sc-y"><div class="stat-lbl">本月生成总量</div><div class="stat-val">${monthTotal}<span> 篇</span></div><div class="stat-chg chg-up">↑ 较上月 +23篇</div></div>
+    <div class="stat-card sc-g"><div class="stat-lbl">平均质量得分</div><div class="stat-val" style="color:var(--green)">${avgScore}</div><div class="stat-chg chg-up">↑ 连续4周正向提升</div></div>
+    <div class="stat-card sc-b"><div class="stat-lbl">一次通过率</div><div class="stat-val" style="color:var(--blue)">${firstPassRate}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div><div style="font-size:11px;color:var(--text3)">首次审稿即通过</div></div>
+    <div class="stat-card sc-p"><div class="stat-lbl">成本节省</div><div class="stat-val" style="color:var(--purple)">${costSavePct}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div><div style="font-size:11px;color:var(--text3)">vs 纯人工制作</div></div>
+  </div>
+
+  <div class="two-col-layout fade-in">
+    <div class="col-main">
+      <!-- 业务线质量 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📝 各业务线生成质量</span><span style="font-size:11px;color:var(--text3);margin-left:8px">均分 · 通过率 · 时效</span></div>
+        <div style="padding:0">${bizRows}</div>
+      </div>
+
+      <!-- 知识库 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📚 依赖知识库</span><span style="font-size:11px;color:var(--text3);margin-left:8px">每次生成前加载，版本锁定</span></div>
+        <div style="padding:0">${kbRows}</div>
+      </div>
+
+      <!-- Skills -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">⚡ Skills 能力列表</span></div>
+        <div class="panel-bd" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">${skillCards}</div>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <!-- 质量趋势 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📈 质量趋势</span><span style="font-size:10px;color:var(--text3);margin-left:6px">近4周均分</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:flex-end;gap:4px;height:56px">${qualBars}</div>
+          <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:8px">↑ 连续4周提升，本周 ${weeklyQuality[3].score}</div>
+        </div>
+      </div>
+
+      <!-- 低质原因 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">⚠️ 低质原因分布</span><span style="font-size:10px;color:var(--text3);margin-left:6px">本月 19 篇</span></div>
+        <div class="panel-bd">${failBars}</div>
+      </div>
+
+      <!-- Tools -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🔧 Tools 工具调用</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">${toolCards}</div>
+      </div>
+
+      <!-- 硬性规则 -->
+      <div class="panel">
+        <div class="panel-hd" style="background:rgba(245,34,45,0.04);border-bottom-color:rgba(245,34,45,0.12)"><span class="panel-title" style="color:var(--red)">🔒 硬性规则</span><span style="font-size:10px;color:var(--text3);margin-left:6px">不可被覆盖的约束</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">
+          ${hardRules.map(r=>`<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 8px;background:var(--bg2);border-radius:var(--rs)">
+            <span style="font-size:12px;flex-shrink:0;margin-top:1px">${r.level}</span>
+            <span style="font-size:11px;color:var(--text2);line-height:1.55">${r.text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== AI: 选号 */
+function aiSelectorPage() {
+  const monthScanTotal = 1840, hitRate = 82, avgErOfRec = 6.8;
+
+  // ── 命中率趋势
+  const hitTrend = [{w:'W20',hr:71},{w:'W21',hr:75},{w:'W22',hr:79},{w:'W23',hr:82}];
+  const hitBars = hitTrend.map((w,i)=>{
+    const h=Math.round((w.hr/100)*48), isL=i===3;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">
+      <div style="font-size:10px;font-weight:${isL?700:400};color:${isL?'var(--green)':'var(--text3)'}">${w.hr}%</div>
+      <div style="width:24px;height:${h}px;background:${isL?'var(--green)':'var(--bg3)'};border-radius:3px 3px 0 0"></div>
+      <div style="font-size:10px;color:var(--text3)">${w.w}</div>
+    </div>`;
+  }).join('');
+
+  // ── 业务线命中率明细
+  const bizSel = [
+    {biz:'外卖',color:'#FF6B1A',scanned:580,recommended:9,hitRate:89,avgRoi:'4.6x',insight:'小红书美食/省钱垂类达人与外卖业务高度匹配'},
+    {biz:'乐生活',color:'#7B3FE4',scanned:420,recommended:8,hitRate:85,avgRoi:'4.3x',insight:'美容类达人推荐准确率高，互动率是最强预测因子'},
+    {biz:'闪购',color:'#0DB876',scanned:380,recommended:7,hitRate:78,avgRoi:'3.9x',insight:'大促期命中率下降，冲动消费场景画像需更精细'},
+    {biz:'酒店',color:'#1677FF',scanned:460,recommended:7,hitRate:71,avgRoi:'3.1x',insight:'命中率最低，亲子/旅游垂类粉丝画像复杂'},
+  ];
+  const bizRows = bizSel.map(b=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="width:38px;height:38px;border-radius:8px;background:${b.color}15;border:1.5px solid ${b.color}30;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-size:13px;font-weight:900;color:${b.color}">${b.hitRate}%</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${b.biz}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${b.color}15;color:${b.color}">推荐${b.recommended}位</span>
+          <span style="font-size:10px;color:var(--text3)">扫描${b.scanned}</span>
+          <span style="font-size:10px;font-weight:700;color:var(--green)">均ROI ${b.avgRoi}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${b.insight}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 过滤维度
+  const filterDims = [
+    {dim:'互动率 <5%',filtered:312,pct:43,color:'#E5474A'},
+    {dim:'历史ROI偏低',filtered:198,pct:27,color:'#F5A623'},
+    {dim:'粉丝数不足',filtered:134,pct:18,color:'#1677FF'},
+    {dim:'黑名单/竞品',filtered:87,pct:12,color:'#AAA'},
+  ];
+  const filterBars = filterDims.map(f=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+      <div style="width:80px;font-size:11px;color:var(--text2);flex-shrink:0">${f.dim}</div>
+      <div style="flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div style="width:${f.pct}%;height:100%;background:${f.color};border-radius:3px"></div>
+      </div>
+      <div style="width:28px;font-size:11px;font-weight:600;color:${f.color};text-align:right">${f.filtered}</div>
+    </div>`).join('');
+
+  // ── 知识库
+  const knowledgeBases = [
+    {name:'达人历史合作数据库', version:'实时', refs:312, desc:'23位在库达人历史ROI/互动率/合作记录，选号主参考'},
+    {name:'黑名单数据库', version:'实时', refs:87, desc:'违规/数据造假/竞品合作达人，选号前强制排除'},
+    {name:'平台垂类标签库', version:'v2.1', refs:156, desc:'小红书/抖音垂类分类体系，用于匹配业务线'},
+    {name:'粉丝画像参考库', version:'v1.4', refs:94, desc:'不同业务线目标用户画像，用于评估达人粉丝匹配度'},
+  ];
+  const kbRows = knowledgeBases.map(k=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="width:32px;height:32px;border-radius:6px;background:#1677FF18;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">📊</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:600;color:var(--text)">${k.name}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3)">${k.version}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${k.desc}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:12px;font-weight:700;color:var(--blue)">${k.refs}</div>
+        <div style="font-size:10px;color:var(--text3)">本月引用</div>
+      </div>
+    </div>`).join('');
+
+  // ── Skills
+  const skills = [
+    {icon:'🔍', name:'互动率扫描', desc:'抓取近30天互动率，是ROI最强预测信号(r=0.82)', status:'active'},
+    {icon:'🎯', name:'垂类匹配度评估', desc:'达人内容垂类 vs 业务线目标用户画像匹配', status:'active'},
+    {icon:'📜', name:'历史ROI回溯', desc:'查询达人历史合作ROI及合作次数', status:'active'},
+    {icon:'🆕', name:'新达人探索', desc:'发现未合作过但画像高匹配的新达人', status:'active'},
+    {icon:'🔮', name:'ROI预测', desc:'基于互动率+垂类+粉丝画像预测合作ROI', status:'beta'},
+  ];
+  const skillCards = skills.map(s=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <span style="font-size:16px;flex-shrink:0">${s.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:1px">
+          <span style="font-size:11px;font-weight:600;color:var(--text)">${s.name}</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:2px;background:${s.status==='active'?'var(--green)':'var(--yellow-l)'};color:${s.status==='active'?'#fff':'var(--yellow-d)'};font-weight:600;border:${s.status==='active'?'none':'1px solid var(--border-y)'}">${s.status==='active'?'已启用':'Beta'}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3)">${s.desc}</div>
+      </div>
+    </div>`).join('');
+
+  // ── Tools
+  const tools = [
+    {icon:'📡', name:'平台达人数据爬取', desc:'小红书/抖音达人主页数据实时抓取'},
+    {icon:'🗄️', name:'达人库写入 API', desc:'推荐结果自动写入达人库待确认'},
+    {icon:'🚫', name:'黑名单校验服务', desc:'每条候选达人均经过黑名单比对'},
+    {icon:'📬', name:'候选推送通知', desc:'推荐完成后自动发消息通知运营'},
+  ];
+  const toolCards = tools.map(t=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <span style="font-size:14px;flex-shrink:0">${t.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:1px">${t.name}</div>
+        <div style="font-size:10px;color:var(--text3)">${t.desc}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 硬性规则
+  const hardRules = [
+    {level:'🔴', text:'黑名单达人无论评分多高，一律不进入推荐结果'},
+    {level:'🔴', text:'互动率低于 3% 的达人直接过滤，不允许人工放行'},
+    {level:'🟡', text:'首次合作达人（历史合作0次）自动标注，需人工确认才可推进'},
+    {level:'🟡', text:'同一达人同一项目周期内仅推荐一次，避免重复'},
+    {level:'🟢', text:'推荐结果需同时满足：互动率≥5% + 垂类匹配度≥60%'},
+    {level:'🟢', text:'每次扫描结果保留30天，超期自动归档'},
+  ];
+
+  return `
+  <div class="stats-row fade-in">
+    <div class="stat-card sc-y"><div class="stat-lbl">本月扫描达人</div><div class="stat-val">${monthScanTotal}<span> 位</span></div><div style="font-size:11px;color:var(--text3)">推荐 31 位</div></div>
+    <div class="stat-card sc-g"><div class="stat-lbl">推荐命中率</div><div class="stat-val" style="color:var(--green)">${hitRate}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div><div class="stat-chg chg-up">↑ 连续4周提升</div></div>
+    <div class="stat-card sc-b"><div class="stat-lbl">推荐达人均互动率</div><div class="stat-val" style="color:var(--blue)">${avgErOfRec}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div><div style="font-size:11px;color:var(--text3)">高于行业均值 2.3×</div></div>
+    <div class="stat-card sc-p"><div class="stat-lbl">推荐均值ROI</div><div class="stat-val" style="color:var(--purple)">4.0<span style="font-size:13px;font-weight:400;color:var(--text2)">x</span></div><div class="stat-chg chg-up">↑ 较上季度 +0.5x</div></div>
+  </div>
+
+  <div class="two-col-layout fade-in">
+    <div class="col-main">
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🎯 各业务线选号命中率</span><span style="font-size:11px;color:var(--text3);margin-left:8px">命中 = 推荐后ROI达标</span></div>
+        <div style="padding:0">${bizRows}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📚 依赖知识库</span></div>
+        <div style="padding:0">${kbRows}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">⚡ Skills 能力列表</span></div>
+        <div class="panel-bd" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">${skillCards}</div>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📈 命中率趋势</span><span style="font-size:10px;color:var(--text3);margin-left:6px">近4周</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:flex-end;gap:4px;height:56px">${hitBars}</div>
+          <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:8px">↑ 本月命中率达 82%</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🚫 过滤维度分布</span><span style="font-size:10px;color:var(--text3);margin-left:6px">共过滤 731 位</span></div>
+        <div class="panel-bd">${filterBars}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🔧 Tools 工具调用</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">${toolCards}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd" style="background:rgba(245,34,45,0.04);border-bottom-color:rgba(245,34,45,0.12)"><span class="panel-title" style="color:var(--red)">🔒 硬性规则</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">
+          ${hardRules.map(r=>`<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 8px;background:var(--bg2);border-radius:var(--rs)">
+            <span style="font-size:12px;flex-shrink:0;margin-top:1px">${r.level}</span>
+            <span style="font-size:11px;color:var(--text2);line-height:1.55">${r.text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== AI: 审稿 */
+function aiAuditorPage() {
+  const monthAuditTotal = 186, autoPassRate = 91, avgAuditSec = 4.2, riskInterceptCnt = 23;
+
+  // ── 通过率趋势
+  const passTrend = [{w:'W20',pr:85},{w:'W21',pr:88},{w:'W22',pr:90},{w:'W23',pr:91}];
+  const passBars = passTrend.map((w,i)=>{
+    const h=Math.round((w.pr/100)*48), isL=i===3;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">
+      <div style="font-size:10px;font-weight:${isL?700:400};color:${isL?'var(--green)':'var(--text3)'}">${w.pr}%</div>
+      <div style="width:24px;height:${h}px;background:${isL?'var(--green)':'var(--bg3)'};border-radius:3px 3px 0 0"></div>
+      <div style="font-size:10px;color:var(--text3)">${w.w}</div>
+    </div>`;
+  }).join('');
+
+  // ── 业务线审稿明细
+  const bizAudit = [
+    {biz:'外卖',color:'#FF6B1A',total:72,passRate:94,riskCnt:4,avgSec:3.8,topRisk:'夸张表述（撑死/最便宜）'},
+    {biz:'乐生活',color:'#7B3FE4',total:48,passRate:92,riskCnt:4,avgSec:4.1,topRisk:'绝对化表述（第一/绝对）'},
+    {biz:'闪购',color:'#0DB876',total:35,passRate:89,riskCnt:4,avgSec:3.9,topRisk:'大促紧迫感词（最后/限时）'},
+    {biz:'酒店',color:'#1677FF',total:31,passRate:84,riskCnt:5,avgSec:5.1,topRisk:'情感词（感动/催泪）'},
+  ];
+  const auditRows = bizAudit.map(b=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="width:38px;height:38px;border-radius:8px;background:${b.color}15;border:1.5px solid ${b.color}30;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-size:13px;font-weight:900;color:${b.color}">${b.passRate}%</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${b.biz}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${b.color}15;color:${b.color}">审 ${b.total}篇</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:#FFF1F1;color:var(--red)">拦截 ${b.riskCnt}次</span>
+          <span style="font-size:10px;color:var(--text3)">均 ${b.avgSec}s</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">主要风险：${b.topRisk}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 风险拦截分布
+  const riskTypes = [
+    {type:'夸张/绝对化表述',cnt:9,pct:39,color:'#E5474A'},
+    {type:'情感词（限流风险）',cnt:7,pct:30,color:'#F5A623'},
+    {type:'转化引导缺失',cnt:4,pct:17,color:'#1677FF'},
+    {type:'质量评分过低',cnt:3,pct:13,color:'#AAA'},
+  ];
+  const riskBars = riskTypes.map(r=>`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+      <div style="width:88px;font-size:11px;color:var(--text2);flex-shrink:0">${r.type}</div>
+      <div style="flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div style="width:${r.pct}%;height:100%;background:${r.color};border-radius:3px"></div>
+      </div>
+      <div style="width:18px;font-size:11px;font-weight:600;color:${r.color};text-align:right">${r.cnt}</div>
+    </div>`).join('');
+
+  // ── 知识库
+  const knowledgeBases = [
+    {name:'禁用词 & 合规红线库', version:'v2024.05', refs:186, desc:'全平台禁用词、高风险表述清单，每篇必过，月度更新'},
+    {name:'平台限流词库', version:'v3.2', refs:142, desc:'抖音/小红书/微博各平台特异性限流词，平台差异化检测'},
+    {name:'转化引导规范库', version:'v1.1', refs:98, desc:'合格内容结尾需含的转化引导模式，用于转化维度评分'},
+    {name:'历史拒绝案例库', version:'实时', refs:67, desc:'被拒绝内容的特征提取，用于提升审稿准确率'},
+  ];
+  const kbRows = knowledgeBases.map(k=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="width:32px;height:32px;border-radius:6px;background:#E5474A18;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">🛡️</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:600;color:var(--text)">${k.name}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3)">${k.version}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${k.desc}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:12px;font-weight:700;color:var(--blue)">${k.refs}</div>
+        <div style="font-size:10px;color:var(--text3)">本月引用</div>
+      </div>
+    </div>`).join('');
+
+  // ── Skills
+  const skills = [
+    {icon:'🚫', name:'禁用词检测', desc:'全平台禁用词扫描，精确匹配+模糊变体识别', status:'active'},
+    {icon:'📊', name:'三维质量评分', desc:'创意质量/合规安全/转化引导三维度独立评分', status:'active'},
+    {icon:'🎯', name:'平台适配检测', desc:'检测内容风格是否符合目标平台调性', status:'active'},
+    {icon:'⚖️', name:'情感词分类', desc:'区分「高风险限流词」vs「可接受情感表达」', status:'active'},
+    {icon:'🤖', name:'AI辅助批改', desc:'中风险内容自动生成修改建议', status:'beta'},
+  ];
+  const skillCards = skills.map(s=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <span style="font-size:16px;flex-shrink:0">${s.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:1px">
+          <span style="font-size:11px;font-weight:600;color:var(--text)">${s.name}</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:2px;background:${s.status==='active'?'var(--green)':'var(--yellow-l)'};color:${s.status==='active'?'#fff':'var(--yellow-d)'};font-weight:600;border:${s.status==='active'?'none':'1px solid var(--border-y)'}">${s.status==='active'?'已启用':'Beta'}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3)">${s.desc}</div>
+      </div>
+    </div>`).join('');
+
+  // ── Tools
+  const tools = [
+    {icon:'🔍', name:'内容库查询', desc:'审稿通过后触发入库写入，自动关联项目'},
+    {icon:'📋', name:'审稿日志记录', desc:'每次审稿结果写入日志，支持追溯'},
+    {icon:'📬', name:'风险通知推送', desc:'高风险内容立即推送消息通知运营'},
+    {icon:'📊', name:'规则命中统计', desc:'统计各规则触发频率，驱动规则迭代'},
+  ];
+  const toolCards = tools.map(t=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <span style="font-size:14px;flex-shrink:0">${t.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:1px">${t.name}</div>
+        <div style="font-size:10px;color:var(--text3)">${t.desc}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 硬性规则
+  const hardRules = [
+    {level:'🔴', text:'含禁用词的内容必须退回，任何人工审批无法覆盖'},
+    {level:'🔴', text:'三维评分中任一维度低于阈值，整体不通过'},
+    {level:'🟡', text:'合规评分 80-90 分区间标记「待人工确认」，不自动入库'},
+    {level:'🟡', text:'同一篇内容最多被退回修改 3 次，超过自动废弃'},
+    {level:'🟢', text:'三维评分均高于阈值且无禁用词，可配置自动通过入库'},
+    {level:'🟢', text:'审稿规则版本与内容生成时一致，不跨版本追溯'},
+  ];
+
+  return `
+  <div class="stats-row fade-in">
+    <div class="stat-card sc-y"><div class="stat-lbl">本月审稿总量</div><div class="stat-val">${monthAuditTotal}<span> 篇</span></div><div style="font-size:11px;color:var(--text3)">日均 8.4 篇</div></div>
+    <div class="stat-card sc-g"><div class="stat-lbl">AI自动通过率</div><div class="stat-val" style="color:var(--green)">${autoPassRate}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div><div class="stat-chg chg-up">↑ 连续4周提升</div></div>
+    <div class="stat-card sc-b"><div class="stat-lbl">平均审稿时长</div><div class="stat-val" style="color:var(--blue)">${avgAuditSec}<span style="font-size:13px;font-weight:400;color:var(--text2)">秒</span></div><div style="font-size:11px;color:var(--text3)">vs 人工 8分钟</div></div>
+    <div class="stat-card sc-o"><div class="stat-lbl">风险内容拦截</div><div class="stat-val" style="color:var(--orange)">${riskInterceptCnt}<span> 次</span></div><div style="font-size:11px;color:var(--text3)">保护内容安全</div></div>
+  </div>
+
+  <div class="two-col-layout fade-in">
+    <div class="col-main">
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">✅ 各业务线审稿通过率</span><span style="font-size:11px;color:var(--text3);margin-left:8px">通过率 · 拦截次数 · 主要风险</span></div>
+        <div style="padding:0">${auditRows}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📚 依赖知识库</span></div>
+        <div style="padding:0">${kbRows}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">⚡ Skills 能力列表</span></div>
+        <div class="panel-bd" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">${skillCards}</div>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📈 通过率趋势</span><span style="font-size:10px;color:var(--text3);margin-left:6px">近4周</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:flex-end;gap:4px;height:56px">${passBars}</div>
+          <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:8px">↑ 连续提升，本周首次突破 91%</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🚫 风险拦截分布</span><span style="font-size:10px;color:var(--text3);margin-left:6px">本月 23 次</span></div>
+        <div class="panel-bd">${riskBars}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🔧 Tools 工具调用</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">${toolCards}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd" style="background:rgba(245,34,45,0.04);border-bottom-color:rgba(245,34,45,0.12)"><span class="panel-title" style="color:var(--red)">🔒 硬性规则</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">
+          ${hardRules.map(r=>`<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 8px;background:var(--bg2);border-radius:var(--rs)">
+            <span style="font-size:12px;flex-shrink:0;margin-top:1px">${r.level}</span>
+            <span style="font-size:11px;color:var(--text2);line-height:1.55">${r.text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ====================================================== AI: 投放优化 */
+function aiDeliveryPage() {
+  const monthOptCnt = 312, roiLift = 0.6, budgetSavePct = 14, uptime = 99.8;
+
+  // ── ROI提升趋势
+  const roiTrend = [
+    {w:'W20',withAI:3.7,noAI:3.1},{w:'W21',withAI:3.9,noAI:3.2},
+    {w:'W22',withAI:4.0,noAI:3.3},{w:'W23',withAI:4.1,noAI:3.5},
+  ];
+  const roiBars = roiTrend.map((w,i)=>{
+    const hW=Math.round((w.withAI/5)*48), hN=Math.round((w.noAI/5)*48), isL=i===3;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">
+      <div style="font-size:10px;font-weight:${isL?700:400};color:${isL?'var(--green)':'var(--text3)'}">+${(w.withAI-w.noAI).toFixed(1)}x</div>
+      <div style="display:flex;gap:2px;align-items:flex-end">
+        <div style="width:11px;height:${hW}px;background:${isL?'var(--green)':'var(--bg3)'};border-radius:2px 2px 0 0"></div>
+        <div style="width:11px;height:${hN}px;background:${isL?'rgba(229,71,74,0.35)':'var(--bg2)'};border-radius:2px 2px 0 0"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3)">${w.w}</div>
+    </div>`;
+  }).join('');
+
+  // ── 业务线优化效果
+  const bizOpt = [
+    {biz:'外卖',color:'#FF6B1A',roiLift:'+0.8x',roiW:4.3,roiN:3.5,optCnt:98,save:'¥8,400',insight:'小时级出价调整效果最好，每周节省约 ¥2k'},
+    {biz:'乐生活',color:'#7B3FE4',roiLift:'+0.9x',roiW:5.3,roiN:4.4,optCnt:76,save:'¥6,200',insight:'高互动内容加量是最大ROI提升来源'},
+    {biz:'闪购',color:'#0DB876',roiLift:'+0.8x',roiW:5.1,roiN:4.3,optCnt:82,save:'¥5,800',insight:'大促最后24小时密集调优，ROI峰值5.8x'},
+    {biz:'酒店',color:'#1677FF',roiLift:'+0.3x',roiW:2.1,roiN:1.8,optCnt:56,save:'¥3,100',insight:'ROI仍低于目标，落地页是核心卡点非投放侧'},
+  ];
+  const bizRows = bizOpt.map(b=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="width:38px;height:38px;border-radius:8px;background:${b.color}15;border:1.5px solid ${b.color}30;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="font-size:12px;font-weight:900;color:${b.color}">${b.roiLift}</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${b.biz}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${b.color}15;color:${b.color}">调优${b.optCnt}次</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3)">节省${b.save}</span>
+          <span style="font-size:10px;font-weight:600;color:var(--green)">${b.roiW}x</span>
+          <span style="font-size:10px;color:var(--text3)">vs ${b.roiN}x</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${b.insight}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 策略干预效果
+  const stratP = [
+    {type:'oCPC智能出价',execCnt:142,roi:'+0.4x',sr:89,color:'#F5A623'},
+    {type:'高互动内容加量',execCnt:63,roi:'+0.7x',sr:92,color:'#0DB876'},
+    {type:'低效账户暂停',execCnt:71,roi:'+0.3x',sr:95,color:'#1677FF'},
+    {type:'新客定向扩量',execCnt:36,roi:'+0.5x',sr:80,color:'#7B3FE4'},
+  ];
+  const stratRows = stratP.map(s=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="width:6px;height:6px;border-radius:50%;background:${s.color};flex-shrink:0"></div>
+      <div style="flex:1;font-size:11px;color:var(--text)">${s.type}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--green);width:34px;text-align:right">${s.roi}</div>
+      <div style="font-size:11px;color:var(--text3);width:26px;text-align:right">${s.sr}%</div>
+      <div style="font-size:11px;color:var(--text3);width:26px;text-align:right">${s.execCnt}次</div>
+    </div>`).join('');
+
+  // ── 知识库
+  const knowledgeBases = [
+    {name:'项目ROI目标配置库', version:'实时', refs:312, desc:'每个项目的ROI目标/预算/优先级，出价优化的基准'},
+    {name:'历史调优效果库', version:'实时', refs:287, desc:'过往调优动作和结果，AI学习成功/失败模式'},
+    {name:'平台出价策略库', version:'v2.3', refs:198, desc:'各平台oCPC/oCPM/CPT出价策略规则和限制'},
+    {name:'达人内容效果库', version:'实时', refs:134, desc:'各达人内容投放后的CTR/CVR数据，用于加量决策'},
+  ];
+  const kbRows = knowledgeBases.map(k=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="width:32px;height:32px;border-radius:6px;background:#0DB87618;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">⚙️</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:600;color:var(--text)">${k.name}</span>
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3)">${k.version}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">${k.desc}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:12px;font-weight:700;color:var(--blue)">${k.refs}</div>
+        <div style="font-size:10px;color:var(--text3)">本月引用</div>
+      </div>
+    </div>`).join('');
+
+  // ── Skills
+  const skills = [
+    {icon:'💰', name:'oCPC智能出价', desc:'实时ROI监控，自动调整出价幅度最大±20%', status:'active'},
+    {icon:'⏸️', name:'低效账户熔断', desc:'ROI连续2小时低于目标50%，自动暂停', status:'active'},
+    {icon:'📈', name:'高互动内容加量', desc:'互动率>8%内容，自动提升投放权重', status:'active'},
+    {icon:'👤', name:'受众定向扩量', desc:'新客场景下扩大年龄/兴趣定向范围', status:'active'},
+    {icon:'🔮', name:'预算预测分配', desc:'基于历史数据预测每日最优预算分配', status:'beta'},
+  ];
+  const skillCards = skills.map(s=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <span style="font-size:16px;flex-shrink:0">${s.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:1px">
+          <span style="font-size:11px;font-weight:600;color:var(--text)">${s.name}</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:2px;background:${s.status==='active'?'var(--green)':'var(--yellow-l)'};color:${s.status==='active'?'#fff':'var(--yellow-d)'};font-weight:600;border:${s.status==='active'?'none':'1px solid var(--border-y)'}">${s.status==='active'?'已启用':'Beta'}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3)">${s.desc}</div>
+      </div>
+    </div>`).join('');
+
+  // ── Tools
+  const tools = [
+    {icon:'📡', name:'投放平台 API', desc:'小红书/抖音投放后台实时出价调整接口'},
+    {icon:'📊', name:'实时ROI监控', desc:'每小时拉取各项目实时ROI数据'},
+    {icon:'🚨', name:'告警推送服务', desc:'ROI/预算异常触发消息通知，响应<3min'},
+    {icon:'📝', name:'调优日志记录', desc:'每次操作记录动作+结果，支持回溯'},
+  ];
+  const toolCards = tools.map(t=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <span style="font-size:14px;flex-shrink:0">${t.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:1px">${t.name}</div>
+        <div style="font-size:10px;color:var(--text3)">${t.desc}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 硬性规则
+  const hardRules = [
+    {level:'🔴', text:'单次出价调整幅度不超过 ±20%，超出需人工审批'},
+    {level:'🔴', text:'日预算消耗超过 95% 自动停投，防止超量'},
+    {level:'🟡', text:'ROI连续 4 小时低于目标 70% 需发送人工干预提醒'},
+    {level:'🟡', text:'每个项目每小时调优次数上限 5 次，避免频繁波动'},
+    {level:'🟢', text:'ROI高于目标 30% 以上时，AI 可自动申请追加预算（上限 ¥2万）'},
+    {level:'🟢', text:'所有调优操作写入日志并保留 90 天，支持审计'},
+  ];
+
+  return `
+  <div class="stats-row fade-in">
+    <div class="stat-card sc-y"><div class="stat-lbl">本月调优次数</div><div class="stat-val">${monthOptCnt}<span> 次</span></div><div class="stat-chg chg-up">日均 10.4 次全自动</div></div>
+    <div class="stat-card sc-g"><div class="stat-lbl">AI带来ROI提升</div><div class="stat-val" style="color:var(--green)">+${roiLift}<span style="font-size:13px;font-weight:400;color:var(--text2)">x</span></div><div class="stat-chg chg-up">↑ vs 不使用AI优化</div></div>
+    <div class="stat-card sc-b"><div class="stat-lbl">预算节省</div><div class="stat-val" style="color:var(--blue)">${budgetSavePct}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div><div style="font-size:11px;color:var(--text3)">本月节省 ¥2.35w</div></div>
+    <div class="stat-card sc-g"><div class="stat-lbl">系统稳定性</div><div class="stat-val" style="color:var(--green)">${uptime}<span style="font-size:13px;font-weight:400;color:var(--text2)">%</span></div><div style="font-size:11px;color:var(--text3)">本月仅 1 次计划维护</div></div>
+  </div>
+
+  <div class="two-col-layout fade-in">
+    <div class="col-main">
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🚀 各业务线AI优化效果</span><span style="font-size:11px;color:var(--text3);margin-left:8px">AI优化 vs 无优化 ROI对比</span></div>
+        <div style="padding:0">${bizRows}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📚 依赖知识库</span></div>
+        <div style="padding:0">${kbRows}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">⚡ Skills 能力列表</span></div>
+        <div class="panel-bd" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">${skillCards}</div>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📈 ROI提升趋势</span><span style="font-size:10px;color:var(--text3);margin-left:6px">近4周 AI vs 无AI</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:flex-end;gap:4px;height:56px">${roiBars}</div>
+          <div style="display:flex;gap:10px;margin-top:6px">
+            <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:5px;background:var(--green);border-radius:1px"></div><span style="font-size:10px;color:var(--text3)">AI优化</span></div>
+            <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:5px;background:rgba(229,71,74,0.35);border-radius:1px"></div><span style="font-size:10px;color:var(--text3)">无优化</span></div>
+          </div>
+          <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:6px">↑ AI优化本周 ROI 高出 +0.6x</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">⚡ 策略干预效果</span><span style="font-size:10px;color:var(--text3);margin-left:6px">ROI提升 · 成功率 · 执行次数</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;gap:8px;padding-bottom:5px;border-bottom:1px solid var(--border);margin-bottom:4px">
+            <div style="flex:1;font-size:10px;color:var(--text3)">策略</div>
+            <div style="font-size:10px;color:var(--text3);width:34px;text-align:right">提升</div>
+            <div style="font-size:10px;color:var(--text3);width:26px;text-align:right">成功</div>
+            <div style="font-size:10px;color:var(--text3);width:26px;text-align:right">次数</div>
+          </div>
+          ${stratRows}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🔧 Tools 工具调用</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">${toolCards}</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd" style="background:rgba(245,34,45,0.04);border-bottom-color:rgba(245,34,45,0.12)"><span class="panel-title" style="color:var(--red)">🔒 硬性规则</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">
+          ${hardRules.map(r=>`<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 8px;background:var(--bg2);border-radius:var(--rs)">
+            <span style="font-size:12px;flex-shrink:0;margin-top:1px">${r.level}</span>
+            <span style="font-size:11px;color:var(--text2);line-height:1.55">${r.text}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+
+/* ====================================================== TODO PAGE */
+function todoPage() {
+  // ── 待办事项数据（三个类别）
+  // 类别1：AI已完成分析，等人拍板/确认
+  const aiDecisions = [
+    {
+      id:'td1', urgent:true, done:false,
+      icon:'⭐', iconBg:'#FF6B1A',
+      title:'达人推荐：外卖夏季促销 · 4位候选待确认',
+      from:'AI选号', time:'今天 10:23',
+      detail:'小食记Ellie（互动率6.8%，历史ROI 4.8x）、城市吃货报告（互动率4.2%）等4位，已通过合规校验和黑名单筛查',
+      context:'AI建议：优先确认前2位，本周内发出邀约可赶上促销节点',
+      actions:[{label:'去确认 →', style:'btn-y', fn:"switchTab('influencer',document.querySelector('.nav-item:nth-child(2)'))"},
+               {label:'稍后', style:'btn-g', fn:"todoSnooze('td1')"}]
+    },
+    {
+      id:'td2', urgent:true, done:false,
+      icon:'⚠️', iconBg:'#F5A623',
+      title:'内容审核：2篇含合规风险，需你审核放行或退回',
+      from:'AI审稿', time:'今天 11:05',
+      detail:'「探店合肥最火烤肉」（合规分82，含绝对化表述"最火"）、「深夜食堂凌晨2点」（合规分78，含情感词）',
+      context:'若今日完成审核，内容可赶上明日投放窗口',
+      actions:[{label:'去审核 →', style:'btn-y', fn:"switchTab('content',document.querySelector('.nav-item:nth-child(3)'))"},
+               {label:'全部退回', style:'btn-danger', fn:"toast('已退回2篇，AI写手将重新生成','warn','🔄')"}]
+    },
+    {
+      id:'td3', urgent:true, done:false,
+      icon:'🚨', iconBg:'#F5222D',
+      title:'ROI预警：酒店暑期亲子游连续3天低于目标70%',
+      from:'AI投放优化', time:'今天 09:14',
+      detail:'实际ROI 2.1x vs 目标3.0x，AI已自动限速出价，但根本问题在落地页转化率1.2%（均值3.5%）',
+      context:'AI能力边界：投放侧已优化至极限，落地页改造需产品介入',
+      actions:[{label:'查看归因详情 →', style:'btn-y', fn:"switchTab('asset-attr',document.querySelector('.nav-item:nth-child(9)'))"},
+               {label:'知道了', style:'btn-g', fn:"toast('已记录，将继续监控','info','📊')"}]
+    },
+    {
+      id:'td4', urgent:false, done:false,
+      icon:'💰', iconBg:'#7B3FE4',
+      title:'预算追加申请：乐生活美容节 ROI 5.3x，建议追加¥1万',
+      from:'AI投放优化', time:'今天 08:50',
+      detail:'本周ROI 5.3x（目标4.0x），超目标33%。AI测算追加¥1万预算可新增覆盖用户约18%，建议本周五前决策',
+      context:'参考：同类历史操作（美容节W19追加¥8k）后ROI进一步提升0.4x',
+      actions:[{label:'✓ 批准追加', style:'btn-y', fn:"toast('预算追加申请已提交财务审批','ok','💰')"},
+               {label:'暂不追加', style:'btn-g', fn:"toast('已记录，本周保持原预算','info','📌')"}]
+    },
+    {
+      id:'td5', urgent:false, done:false,
+      icon:'📋', iconBg:'#1677FF',
+      title:'达人续约决策：省钱达人阿杰合作期将于本周日到期',
+      from:'系统提醒', time:'今天 08:00',
+      detail:'历史合作3次，ROI均值4.9x，互动率8.1%，S级。本周仍有1篇乐生活内容待发布',
+      context:'AI建议：强烈建议续约，可同时扩展至外卖业务线',
+      actions:[{label:'去达人库续约', style:'btn-y', fn:"switchTab('asset-inf',document.querySelector('.nav-item:nth-child(8)'))"},
+               {label:'稍后处理', style:'btn-g', fn:"todoSnooze('td5')"}]
+    },
+  ];
+
+  // 类别2：项目节点 deadline
+  const deadlines = [
+    {id:'dl1', done:false, biz:'外卖', proj:'夏季促销', color:'#FF6B1A', date:'今天', urgency:'high',
+     title:'达人邀约函发出截止', detail:'3位候选达人需在今日下班前发出合作邀约，否则错过本周发布窗口'},
+    {id:'dl2', done:false, biz:'酒店', proj:'暑期亲子游', color:'#1677FF', date:'明天', urgency:'high',
+     title:'落地页A/B测试方案提交', detail:'产品侧已在等待需求文档，测试启动越早越好'},
+    {id:'dl3', done:false, biz:'乐生活', proj:'美容美体节', color:'#7B3FE4', date:'周三', urgency:'med',
+     title:'618收尾复盘文档撰写', detail:'AI已准备好数据报告草稿，需运营确认关键结论并补充主观分析'},
+    {id:'dl4', done:true, biz:'闪购', proj:'618大促收尾', color:'#0DB876', date:'昨日', urgency:'done',
+     title:'✓ 内容归档入库完成', detail:'8篇内容已入库，AI复利飞轮 +8 转'},
+    {id:'dl5', done:false, biz:'全线', proj:'所有项目', color:'#9BA3B4', date:'周五', urgency:'low',
+     title:'W23 周报发送', detail:'AI会自动生成草稿，需你最终确认并发送至团队邮箱'},
+  ];
+
+  // 类别3：例行事项
+  const routines = [
+    {id:'rt1', done:true,  icon:'📊', title:'查看今日战情室数据', time:'完成于 08:30'},
+    {id:'rt2', done:true,  icon:'🤖', title:'确认7个AI Agent状态正常', time:'完成于 08:31'},
+    {id:'rt3', done:false, icon:'📬', title:'回复达人合作消息（共3条未读）', time:'最晚今日18:00'},
+    {id:'rt4', done:false, icon:'📝', title:'更新乐生活项目ROI目标至4.5x', time:'本周内'},
+    {id:'rt5', done:false, icon:'📅', title:'预约W24周会（下周一 14:00）', time:'本周内'},
+  ];
+
+  // 进度统计
+  const totalItems = aiDecisions.length + deadlines.filter(d=>!d.done).length + routines.length;
+  const doneItems = aiDecisions.filter(d=>d.done).length + deadlines.filter(d=>d.done).length + routines.filter(r=>r.done).length;
+  const urgentCnt = aiDecisions.filter(d=>d.urgent&&!d.done).length;
+  const pct = Math.round(doneItems/totalItems*100);
+
+  // 进度环
+  const circ = 2*Math.PI*20; // r=20
+  const fillLen = circ*(pct/100);
+
+  // AI决策卡片
+  const aiCards = aiDecisions.map(t=>`
+    <div class="aq-item ${t.urgent?'urgent':'ai-done'} fade-in" id="todo-${t.id}" style="margin-bottom:8px">
+      <div class="aq-avatar" style="background:${t.iconBg}18">${t.icon}</div>
+      <div class="aq-body">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <div class="aq-title">${t.title}</div>
+          ${t.urgent?'<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:var(--red-l);color:var(--red);font-weight:700;flex-shrink:0">紧急</span>':''}
+        </div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:4px">${t.detail}</div>
+        <div style="font-size:10px;color:var(--blue);background:var(--blue-l);padding:4px 8px;border-radius:4px;margin-bottom:7px;line-height:1.5">🤖 ${t.context}</div>
+        <div class="aq-actions">
+          ${t.actions.map(a=>`<button class="btn ${a.style}" style="font-size:11px;padding:4px 10px" onclick="${a.fn}">${a.label}</button>`).join('')}
+          <span class="aq-time">来自 ${t.from} · ${t.time}</span>
+        </div>
+      </div>
+    </div>`).join('');
+
+  // deadline 行
+  const urgColor = {high:'var(--red)', med:'var(--orange)', low:'var(--text3)', done:'var(--green)'};
+  const urgLabel = {high:'今日必须', med:'本周内', low:'计划中', done:'已完成'};
+  const dlRows = deadlines.map(d=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);${d.done?'opacity:0.55':''};transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="width:4px;height:36px;border-radius:2px;background:${d.color};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span style="font-size:12px;font-weight:${d.done?400:600};color:${d.done?'var(--text3)':'var(--text)'}${d.done?';text-decoration:line-through':''}">${d.title}</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${urgColor[d.urgency]}15;color:${urgColor[d.urgency]};font-weight:600">${urgLabel[d.urgency]}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${d.color}15;color:${d.color}">${d.biz} · ${d.proj}</span>
+          <span style="font-size:10px;color:var(--text3)">${d.detail}</span>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:${urgColor[d.urgency]};flex-shrink:0;text-align:right;min-width:36px">${d.date}</div>
+    </div>`).join('');
+
+  // 例行事项行
+  const rtRows = routines.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);${r.done?'opacity:0.5':''}" onclick="todoToggle('${r.id}',this)" style="cursor:pointer">
+      <div style="width:16px;height:16px;border-radius:4px;border:1.5px solid ${r.done?'var(--green)':'var(--border)'};background:${r.done?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .15s">
+        ${r.done?'<svg width="9" height="7" viewBox="0 0 9 7"><polyline points="1,3.5 3.5,6 8,1" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
+      </div>
+      <span style="font-size:13px;flex-shrink:0">${r.icon}</span>
+      <span style="font-size:12px;color:${r.done?'var(--text3)':'var(--text)'};flex:1${r.done?';text-decoration:line-through':''}">${r.title}</span>
+      <span style="font-size:10px;color:${r.done?'var(--green)':'var(--text3)'};flex-shrink:0">${r.time}</span>
+    </div>`).join('');
+
+  return `
+  <!-- 头部进度摘要 -->
+  <div class="fade-in" style="display:flex;align-items:center;gap:12px;background:var(--bg1);border:1px solid var(--border);border-radius:12px;padding:14px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.04)">
+    <!-- 环形进度 -->
+    <svg width="52" height="52" style="flex-shrink:0">
+      <circle cx="26" cy="26" r="20" fill="none" stroke="var(--bg3)" stroke-width="4"/>
+      <circle cx="26" cy="26" r="20" fill="none" stroke="var(--green)" stroke-width="4" stroke-linecap="round"
+        stroke-dasharray="${fillLen.toFixed(1)} ${circ.toFixed(1)}"
+        transform="rotate(-90 26 26)"/>
+      <text x="26" y="30" text-anchor="middle" font-size="11" font-weight="800" fill="var(--text)">${pct}%</text>
+    </svg>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:3px">今日待办进度</div>
+      <div style="font-size:12px;color:var(--text2)">已完成 <b style="color:var(--green)">${doneItems}</b> 项 · 共 <b>${totalItems}</b> 项
+        ${urgentCnt>0?`<span style="margin-left:8px;font-size:11px;padding:2px 7px;border-radius:10px;background:var(--red-l);color:var(--red);font-weight:700">${urgentCnt} 项紧急待处理</span>`:''}
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;flex-shrink:0;text-align:center">
+      <div><div style="font-size:18px;font-weight:800;color:var(--orange)">${aiDecisions.filter(d=>!d.done).length}</div><div style="font-size:10px;color:var(--text3)">AI交办</div></div>
+      <div><div style="font-size:18px;font-weight:800;color:var(--red)">${deadlines.filter(d=>!d.done&&d.urgency==='high').length}</div><div style="font-size:10px;color:var(--text3)">今日截止</div></div>
+      <div><div style="font-size:18px;font-weight:800;color:var(--text3)">${routines.filter(r=>!r.done).length}</div><div style="font-size:10px;color:var(--text3)">例行未完</div></div>
+    </div>
+  </div>
+
+  <!-- 主体双栏 -->
+  <div class="two-col-layout fade-in">
+    <div class="col-main">
+
+      <!-- AI交办 -->
+      <div class="panel">
+        <div class="panel-hd">
+          <span style="font-size:15px">🤖</span>
+          <span class="panel-title">AI 交给你决策的事项</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:6px">AI已完成分析，需你确认或拍板</span>
+          <span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--orange-l);color:var(--orange);font-weight:700">${aiDecisions.filter(d=>!d.done).length} 项待处理</span>
+        </div>
+        <div style="padding:12px">${aiCards}</div>
+      </div>
+
+      <!-- 项目节点 -->
+      <div class="panel">
+        <div class="panel-hd">
+          <span style="font-size:15px">📅</span>
+          <span class="panel-title">项目节点 & Deadline</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:6px">按紧急程度排序</span>
+        </div>
+        <div style="padding:0">${dlRows}</div>
+      </div>
+
+    </div>
+
+    <div class="col-side">
+
+      <!-- 例行事项 -->
+      <div class="panel">
+        <div class="panel-hd">
+          <span style="font-size:15px">✅</span>
+          <span class="panel-title">每日例行事项</span>
+        </div>
+        <div style="padding:0">${rtRows}</div>
+        <div style="padding:10px 14px;background:var(--bg2);border-top:1px solid var(--border);border-radius:0 0 var(--radius) var(--radius)">
+          <button class="btn btn-g" style="width:100%;justify-content:center;font-size:11px" onclick="toast('已全部标记完成','ok','✅')">全部标记完成</button>
+        </div>
+      </div>
+
+      <!-- 今日完成情况 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📊 今日完成情况</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:8px">
+          ${[
+            {lbl:'AI交办处理', done:aiDecisions.filter(d=>d.done).length, total:aiDecisions.length, color:'var(--orange)'},
+            {lbl:'节点按时推进', done:deadlines.filter(d=>d.done).length, total:deadlines.length, color:'var(--blue)'},
+            {lbl:'例行事项', done:routines.filter(r=>r.done).length, total:routines.length, color:'var(--green)'},
+          ].map(m=>`
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                <span style="font-size:11px;color:var(--text2)">${m.lbl}</span>
+                <span style="font-size:11px;font-weight:700;color:${m.color}">${m.done}/${m.total}</span>
+              </div>
+              <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden">
+                <div style="width:${Math.round(m.done/m.total*100)}%;height:100%;background:${m.color};border-radius:3px;transition:width .5s ease"></div>
+              </div>
+            </div>`).join('')}
+          <div style="margin-top:4px;font-size:11px;color:var(--text3);text-align:center;padding-top:6px;border-top:1px solid var(--border)">
+            今日整体完成率 <b style="color:var(--green);font-size:13px">${pct}%</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- 快捷入口 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">⚡ 快捷入口</span></div>
+        <div class="panel-bd" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          ${[
+            {icon:'⭐', label:'达人选号', tab:'influencer', el:'.nav-item:nth-child(2)'},
+            {icon:'✍️', label:'内容审核', tab:'content', el:'.nav-item:nth-child(3)'},
+            {icon:'📊', label:'数据归因', tab:'asset-attr', el:'.nav-item:nth-child(9)'},
+            {icon:'💰', label:'预算状态', tab:'delivery', el:'.nav-item:nth-child(4)'},
+          ].map(s=>`<button class="btn btn-g" style="justify-content:center;font-size:11px;padding:6px" onclick="switchTab('${s.tab}',document.querySelector('${s.el}'))">${s.icon} ${s.label}</button>`).join('')}
+        </div>
+      </div>
+
+    </div>
+  </div>`;
+}
+
+function todoSnooze(id) {
+  const el = document.getElementById('todo-'+id);
+  if (el) { el.style.opacity='0.45'; el.style.pointerEvents='none'; }
+  toast('已推后4小时提醒','info','⏰');
+}
+function todoToggle(id, row) {
+  row.style.opacity = row.style.opacity === '0.5' ? '1' : '0.5';
+  toast('状态已更新','ok','✅');
+}
+
+
+/* ====================================================== WEEKLY REPORT PAGE */
+function weeklyPage() {
+  // ── 本周时间范围（动态）
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const mon = new Date(now); mon.setDate(now.getDate() - day + 1);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt = d => `${d.getMonth()+1}月${d.getDate()}日`;
+  const weekRange = `${fmt(mon)} – ${fmt(sun)}`;
+
+  // ── 核心周指标
+  const kpis = [
+    {lbl:'本周综合ROI', val:'4.1x', sub:'目标 3.8x', color:'var(--green)', chg:'↑ +0.3x vs 上周', up:true, mark:'sc-g'},
+    {lbl:'内容生产量', val:'47篇', sub:'AI生成 40 · 人工 7', color:'var(--blue)', chg:'↑ +12篇 vs 上周', up:true, mark:'sc-b'},
+    {lbl:'达人触达用户', val:'386万', sub:'覆盖6个业务线', color:'var(--purple)', chg:'↑ +58万 vs 上周', up:true, mark:'sc-p'},
+    {lbl:'预算执行率', val:'87%', sub:'本周消耗 ¥16.2万', color:'var(--orange)', chg:'节省 ¥2.4万', up:true, mark:'sc-y'},
+  ];
+  const kpiCards = kpis.map(k=>`
+    <div class="stat-card ${k.mark}">
+      <div class="stat-lbl">${k.lbl}</div>
+      <div class="stat-val" style="color:${k.color}">${k.val}</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:3px">${k.sub}</div>
+      <div class="stat-chg ${k.up?'chg-up':'chg-dn'}">${k.chg}</div>
+    </div>`).join('');
+
+  // ── 6项目周汇总
+  const projSummary = [
+    {biz:'外卖', name:'夏季促销', color:'#FF6B1A', roi:4.3, target:3.8, spent:'¥8.1万', content:12, status:'ok',
+     highlight:'小红书达人种草效果最优，互动率 6.8%，ROI超目标13%',
+     action:'建议追加达人内容预算 ¥2万，复用高互动模板'},
+    {biz:'外卖', name:'新用户拉新', color:'#FF8C42', roi:3.9, target:3.5, spent:'¥2.3万', content:8, status:'ok',
+     highlight:'新客转化率提升至52%，小红书搜索场景强势',
+     action:'下周继续维持当前达人组合，关注竞品动作'},
+    {biz:'酒店', name:'暑期亲子游', color:'#1677FF', roi:2.1, target:3.0, spent:'¥1.8万', content:5, status:'bad',
+     highlight:'⚠️ ROI低于目标0.9x，落地页转化仅1.2%（行业均值3.5%）',
+     action:'🔴 本周行动：落地页A/B测试已启动，预计下周恢复至2.5x+'},
+    {biz:'乐生活', name:'美容美体节', color:'#7B3FE4', roi:5.3, target:4.0, spent:'¥1.3万', content:9, status:'ok',
+     highlight:'本周最优项目，ROI超目标33%，美妆KOL内容贡献55%',
+     action:'申请追加预算 ¥1万，扩大高ROI达人铺量'},
+    {biz:'闪购', name:'618大促收尾', color:'#0DB876', roi:5.1, target:4.5, spent:'¥0.9万', content:8, status:'ok',
+     highlight:'大促余热效果好，48h快速补量策略奏效',
+     action:'下周进入常规期，降频投放，保留3位核心达人'},
+    {biz:'酒店', name:'商务出行', color:'#4096FF', roi:3.8, target:3.5, spent:'¥3.1万', content:5, status:'ok',
+     highlight:'企业客群触达效率提升，抖音职场场景表现稳定',
+     action:'维持当前节奏，关注Q3旺季备战节点'},
+  ];
+  const statusTag = {
+    ok:`<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:var(--green-l);color:var(--green);font-weight:600">✅ 达标</span>`,
+    bad:`<span style="font-size:10px;padding:1px 6px;border-radius:3px;background:var(--red-l);color:var(--red);font-weight:600">🚨 未达标</span>`
+  };
+  const roiColor = (roi, target) => roi >= target ? 'var(--green)' : roi >= target*0.8 ? 'var(--yellow-d)' : 'var(--red)';
+  const projRows = projSummary.map(p=>`
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border);transition:background .12s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div style="width:6px;height:32px;border-radius:3px;background:${p.color};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <span style="font-size:12px;font-weight:700;color:var(--text)">${p.biz} · ${p.name}</span>
+            ${statusTag[p.status]}
+            <span style="font-size:10px;color:var(--text3)">消耗${p.spent}</span>
+            <span style="font-size:10px;color:var(--text3)">内容${p.content}篇</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;flex-shrink:0;text-align:right">
+          <div>
+            <div style="font-size:16px;font-weight:900;color:${roiColor(p.roi,p.target)};line-height:1">${p.roi}x</div>
+            <div style="font-size:9px;color:var(--text3)">实际ROI</div>
+          </div>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:var(--text3);line-height:1">${p.target}x</div>
+            <div style="font-size:9px;color:var(--text3)">目标</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding-left:16px">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:3px">${p.highlight}</div>
+        <div style="font-size:11px;color:var(--blue);font-weight:500">→ ${p.action}</div>
+      </div>
+    </div>`).join('');
+
+  // ── AI能力周表现
+  const aiPerf = [
+    {icon:'✍️', name:'AI写手', execs:47, passRate:91, avgTime:'1.7min', roiLift:'+0.4x', trend:'↑'},
+    {icon:'🔍', name:'AI选号', execs:312, passRate:82, avgTime:'—', roiLift:'+0.5x', trend:'↑'},
+    {icon:'✅', name:'AI审稿', execs:47, passRate:91, avgTime:'4.2s', roiLift:'拦截6次', trend:'✓'},
+    {icon:'📈', name:'AI投放优化', execs:78, passRate:89, avgTime:'实时', roiLift:'+0.6x', trend:'↑'},
+  ];
+  const aiRows = aiPerf.map(a=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border)">
+      <span style="font-size:16px;width:24px;text-align:center;flex-shrink:0">${a.icon}</span>
+      <div style="flex:1;font-size:12px;font-weight:600;color:var(--text)">${a.name}</div>
+      <div style="font-size:11px;color:var(--text3);width:40px;text-align:center">${a.execs}次</div>
+      <div style="font-size:11px;font-weight:600;color:var(--green);width:38px;text-align:center">${a.passRate}%</div>
+      <div style="font-size:11px;color:var(--text3);width:46px;text-align:center">${a.avgTime}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--blue);width:50px;text-align:right">${a.roiLift}</div>
+    </div>`).join('');
+
+  // ── 本周亮点达人 Top3
+  const topInf = [
+    {av:'小', avBg:'#FF6B1A', name:'小食记Ellie', plat:'小红书', biz:'外卖', er:'6.8%', roi:'4.8x', posts:2, badge:'本周MVP'},
+    {av:'省', avBg:'#7B3FE4', name:'省钱达人阿杰', plat:'小红书', biz:'乐生活', er:'8.1%', roi:'4.9x', posts:1, badge:'互动率最高'},
+    {av:'生', avBg:'#0DB876', name:'生活美学vlog', plat:'小红书', biz:'乐生活', er:'5.6%', roi:'4.2x', posts:2, badge:'内容质量优'},
+  ];
+  const infCards = topInf.map((inf,i)=>`
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--bg2);border-radius:var(--rs)">
+      <div style="font-size:11px;font-weight:900;color:var(--text3);width:14px;flex-shrink:0">#${i+1}</div>
+      <div style="width:30px;height:30px;border-radius:50%;background:${inf.avBg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">${inf.av}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
+          <span style="font-size:11px;font-weight:700;color:var(--text)">${inf.name}</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:10px;background:${inf.avBg}20;color:${inf.avBg};font-weight:600">${inf.badge}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3)">${inf.plat} · ${inf.biz} · ${inf.posts}篇</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:12px;font-weight:700;color:var(--green)">${inf.roi}</div>
+        <div style="font-size:10px;color:var(--text3)">互动${inf.er}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 周趋势（近4周ROI走势）
+  const weekTrend = [
+    {w:'W20', roi:3.7, budget:14.8},
+    {w:'W21', roi:3.8, budget:15.3},
+    {w:'W22', roi:3.9, budget:15.8},
+    {w:'W23', roi:4.1, budget:16.2},
+  ];
+  const maxRoi = 5;
+  const trendBars = weekTrend.map((w,i)=>{
+    const h = Math.round((w.roi/maxRoi)*52);
+    const isL = i === 3;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1">
+      <div style="font-size:10px;font-weight:${isL?700:400};color:${isL?'var(--green)':'var(--text3)'}">${w.roi}x</div>
+      <div style="width:28px;height:${h}px;background:${isL?'var(--green)':'var(--bg3)'};border-radius:3px 3px 0 0;position:relative">
+        ${isL?'<div style="position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:8px;background:var(--green);color:#fff;padding:1px 4px;border-radius:3px;white-space:nowrap">本周</div>':''}
+      </div>
+      <div style="font-size:10px;color:var(--text3)">${w.w}</div>
+    </div>`;
+  }).join('');
+
+  // ── 下周重点行动
+  const nextActions = [
+    {pri:'P0', color:'var(--red)', title:'酒店亲子游落地页优化上线', owner:'产品+运营', deadline:'周三前', detail:'当前转化率1.2%，目标提升至2.5%，A/B方案已准备'},
+    {pri:'P0', color:'var(--red)', title:'乐生活追加预算申请', owner:'运营负责人', deadline:'周一', detail:'ROI达5.3x，追加¥1万可提升覆盖量约+18%'},
+    {pri:'P1', color:'var(--orange)', title:'外卖夏促新一轮达人邀约', owner:'AI选号', deadline:'周二', detail:'本批次3位候选达人待确认，历史ROI均值4.6x'},
+    {pri:'P1', color:'var(--orange)', title:'618收尾内容归档入库', owner:'AI审稿', deadline:'周四', detail:'8篇高质量内容待入库，可作为模板复用'},
+    {pri:'P2', color:'var(--blue)', title:'AI选号命中率复盘会', owner:'数据+运营', deadline:'周五', detail:'W23命中率82%，分析外卖/酒店差异原因'},
+  ];
+  const actionRows = nextActions.map(a=>`
+    <div style="display:flex;align-items:flex-start;gap:9px;padding:9px 12px;border-bottom:1px solid var(--border)">
+      <span style="font-size:10px;padding:2px 6px;border-radius:3px;background:${a.color}15;color:${a.color};font-weight:700;flex-shrink:0;margin-top:1px">${a.pri}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px">${a.title}</div>
+        <div style="font-size:11px;color:var(--text3)">${a.detail}</div>
+      </div>
+      <div style="flex-shrink:0;text-align:right">
+        <div style="font-size:11px;font-weight:600;color:var(--text2)">${a.owner}</div>
+        <div style="font-size:10px;color:var(--text3)">${a.deadline}</div>
+      </div>
+    </div>`).join('');
+
+  // ── 飞轮健康度
+  const flywheel = [
+    {icon:'✍️', step:'内容生产', val:'47篇/周', chg:'+12篇', up:true},
+    {icon:'📥', step:'知识入库', val:'23篇', chg:'+8篇', up:true},
+    {icon:'🔄', step:'模板复用率', val:'61%', chg:'+9%', up:true},
+    {icon:'📈', step:'均分', val:'88.4', chg:'+1.6', up:true},
+  ];
+  const fwItems = flywheel.map((f,i)=>`
+    <div style="display:flex;align-items:center;gap:0">
+      <div style="text-align:center;padding:8px 10px;background:var(--bg2);border-radius:var(--rs);flex:1">
+        <div style="font-size:14px;margin-bottom:3px">${f.icon}</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text)">${f.step}</div>
+        <div style="font-size:13px;font-weight:800;color:var(--purple);margin:2px 0">${f.val}</div>
+        <div style="font-size:10px;color:var(--green)">${f.chg}</div>
+      </div>
+      ${i<flywheel.length-1?`<div style="font-size:14px;color:var(--text3);padding:0 3px">→</div>`:''}
+    </div>`).join('');
+
+  return `
+  <!-- 周报标题行 -->
+  <div class="fade-in" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#FFFBEA,#FFF4CC,#F0F7FF);border:1px solid var(--border-y);border-radius:12px;padding:16px 20px;margin-bottom:2px">
+    <div>
+      <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:3px">📈 第23周营销周报</div>
+      <div style="font-size:12px;color:var(--text2)">${weekRange} · 内容营销中心 · 执行端</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">AI自动生成 · 覆盖 6 个项目 · 4 个AI能力模块</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-g" onclick="toast('PDF导出中，预计10秒...','info','📄')" style="font-size:11px">📄 导出PDF</button>
+      <button class="btn btn-y" onclick="toast('周报已发送至团队邮箱','ok','📧')" style="font-size:11px">📧 发送邮件</button>
+    </div>
+  </div>
+
+  <!-- KPI 概览 -->
+  <div class="stats-row fade-in">${kpiCards}</div>
+
+  <!-- 主体双栏 -->
+  <div class="two-col-layout fade-in">
+    <div class="col-main">
+
+      <!-- 项目周汇总 -->
+      <div class="panel">
+        <div class="panel-hd">
+          <span class="panel-title">📊 本周项目ROI汇总</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px">实际ROI vs 目标 · 关键洞察 · 下周行动</span>
+        </div>
+        <div style="padding:0">${projRows}</div>
+      </div>
+
+      <!-- 下周重点行动 -->
+      <div class="panel">
+        <div class="panel-hd">
+          <span class="panel-title">🎯 下周重点行动</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px">P0 必须完成 · P1 重要 · P2 跟进</span>
+        </div>
+        <div style="padding:0">${actionRows}</div>
+      </div>
+
+    </div>
+
+    <div class="col-side">
+
+      <!-- 近4周ROI趋势 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">📈 近4周ROI趋势</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:flex-end;gap:4px;height:68px;margin-bottom:6px">${trendBars}</div>
+          <div style="font-size:11px;color:var(--green);font-weight:600">↑ 连续4周提升，本周 4.1x 突破历史高点</div>
+        </div>
+      </div>
+
+      <!-- AI能力周表现 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">🤖 AI能力周表现</span></div>
+        <div style="padding:0">
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2)">
+            <div style="width:24px;flex-shrink:0"></div>
+            <div style="flex:1;font-size:10px;color:var(--text3)">能力</div>
+            <div style="font-size:10px;color:var(--text3);width:40px;text-align:center">执行</div>
+            <div style="font-size:10px;color:var(--text3);width:38px;text-align:center">成功率</div>
+            <div style="font-size:10px;color:var(--text3);width:46px;text-align:center">时效</div>
+            <div style="font-size:10px;color:var(--text3);width:50px;text-align:right">ROI贡献</div>
+          </div>
+          ${aiRows}
+        </div>
+      </div>
+
+      <!-- 本周亮点达人 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title">⭐ 本周亮点达人</span><span style="font-size:10px;color:var(--text3);margin-left:6px">Top 3</span></div>
+        <div class="panel-bd" style="display:flex;flex-direction:column;gap:6px">${infCards}</div>
+      </div>
+
+      <!-- 知识复利飞轮 -->
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-title" style="color:var(--purple)">🔄 知识复利飞轮</span><span style="font-size:10px;color:var(--text3);margin-left:6px">本周积累</span></div>
+        <div class="panel-bd">
+          <div style="display:flex;align-items:center;gap:4px">${fwItems}</div>
+          <div style="margin-top:8px;font-size:11px;color:var(--purple);background:var(--purple-l);border-radius:var(--rs);padding:6px 9px;line-height:1.55">
+            高质量内容入库率本周提升至 <b>61%</b>，AI复用积累加速——预计下周AI生成均分可突破 <b>89</b>。
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>`;
+}
+
+
+const toastTimer = {};
+function toast(msg, type, icon) {
+  type = type || 'info'; icon = icon || '💡';
+  const wrap = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = '<span class="toast-icon">' + icon + '</span><span class="toast-text">' + msg + '</span>';
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3000);
+}
+</script>
+</body>
+</html>
